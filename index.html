@@ -7,35 +7,37 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="style.css">
 </head>
-<body>
-    <div id="login-screen" class="overlay">
+<body class="dark-mode"> <div id="login-screen" class="overlay">
         <div class="login-box">
-            <h2>Acceso Sistema CAD</h2>
-            <input type="email" id="email" placeholder="Correo">
+            <img src="https://cdn-icons-png.flaticon.com/512/1022/1022334.png" width="80">
+            <h2>CAD EMERGENCIAS</h2>
+            <input type="email" id="email" placeholder="Correo electrónico">
             <input type="password" id="password" placeholder="Contraseña">
-            <button onclick="login()">Ingresar</button>
+            <button onclick="login()">INGRESAR</button>
         </div>
     </div>
 
     <div id="main-app" style="display:none;">
         <header>
-            <div class="logo">CENTRO DE MONITOREO - LIVE</div>
-            <div id="user-info"></div>
-            <button onclick="logout()">Salir</button>
+            <div class="brand"><strong>CENTRO DE MONITOREO</strong> | CAD</div>
+            <div class="header-controls">
+                <button id="theme-toggle" onclick="toggleTheme()">Modo Claro</button>
+                <div id="user-display"></div>
+                <button class="btn-logout" onclick="logout()">Cerrar Sesión</button>
+            </div>
         </header>
 
-        <main>
-            <div id="sidebar">
-                <h3>Material Mayor</h3>
+        <div class="container">
+            <aside id="sidebar">
+                <div class="section-title">MATERIAL MAYOR</div>
                 <div id="lista-vehiculos"></div>
-                <hr>
-                <div id="controles-operador" style="display:none;">
-                    <h3>Despacho</h3>
-                    <button onclick="abrirModalEmergencia()">Nueva Emergencia</button>
+                <div id="controles-operador" style="display:none; margin-top: 20px;">
+                    <div class="section-title">ACCIONES</div>
+                    <button class="btn-emergency">NUEVA EMERGENCIA</button>
                 </div>
-            </div>
+            </aside>
             <div id="map"></div>
-        </main>
+        </div>
     </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
