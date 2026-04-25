@@ -22,21 +22,31 @@ let layerDark, layerLight, layerSatellite;
 function initMap() {
     if (map) return;
 
-    layerDark = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { attribution: '&copy; OpenStreetMap' });
-    layerLight = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap' });
+    // 1. CAPA OSCURA (La que ya tenías)
+    layerDark = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { 
+        attribution: '&copy; OpenStreetMap' 
+    });
+
+    // 2. NUEVA CAPA CLARA PROFESIONAL (CartoDB Positron)
+    // Este es el estilo que me pediste
+    layerLight = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; OpenStreetMap &copy; CARTO'
+    });
+
+    // 3. CAPA SATELITAL
     layerSatellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-        attribution: 'Esri, DigitalGlobe, GeoEye, Earthstar Geographics'
+        attribution: 'Esri'
     });
 
     map = L.map('map', {
-        center: [-33.1467, -70.2857],
-        zoom: 14,
-        layers: [layerDark] 
+        center: [-33.4489, -70.6693], // Santiago centro
+        zoom: 13,
+        layers: [layerLight] // Ahora inicia con el estilo gris bonito
     });
 
     const baseMaps = {
-        "Vista Oscura": layerDark,
-        "Vista Clara": layerLight,
+        "Mapa Gris Pro": layerLight,
+        "Mapa Oscuro": layerDark,
         "Vista Satelital": layerSatellite
     };
 
