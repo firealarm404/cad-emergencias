@@ -1,12 +1,63 @@
-body, html { margin: 0; padding: 0; height: 100%; font-family: sans-serif; background: #1a1a1a; color: white; }
-header { height: 60px; background: #000; display: flex; align-items: center; padding: 0 20px; justify-content: space-between; border-bottom: 2px solid #ff4400; }
-main { display: flex; height: calc(100% - 60px); }
-#sidebar { width: 300px; background: #252525; padding: 15px; border-right: 1px solid #444; overflow-y: auto; }
-#map { flex-grow: 1; height: 100%; }
-.overlay { position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.9); display: flex; justify-content: center; align-items: center; z-index: 1000; }
-.login-box { background: #333; padding: 30px; border-radius: 8px; text-align: center; }
-input { display: block; margin: 10px auto; padding: 10px; width: 80%; }
-button { padding: 10px 20px; background: #ff4400; border: none; color: white; cursor: pointer; font-weight: bold; }
-.vehiculo-card { background: #444; margin-bottom: 5px; padding: 10px; border-radius: 4px; display: flex; justify-content: space-between; }
-.estado-6-8 { color: #00ff00; } /* Disponible */
-.estado-6-3 { color: #ff0000; } /* En el lugar */
+:root {
+    --bg-main: #121212;
+    --bg-side: #1e1e1e;
+    --text: #ffffff;
+    --border: #333;
+    --card: #2a2a2a;
+}
+
+/* Variables para Modo Claro */
+.light-mode {
+    --bg-main: #f0f2f5;
+    --bg-side: #ffffff;
+    --text: #1c1e21;
+    --border: #ddd;
+    --card: #f8f9fa;
+}
+
+body, html { margin: 0; padding: 0; height: 100%; font-family: sans-serif; background: var(--bg-main); color: var(--text); transition: all 0.3s ease; }
+
+header { 
+    height: 60px; 
+    background: #000; 
+    color: white; 
+    display: flex; 
+    align-items: center; 
+    justify-content: space-between; 
+    padding: 0 20px; 
+    border-bottom: 2px solid #ff4500; 
+}
+
+.header-controls { display: flex; align-items: center; gap: 15px; }
+
+#theme-toggle {
+    background: #444;
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.container { display: flex; height: calc(100vh - 60px); }
+#sidebar { width: 300px; background: var(--bg-side); border-right: 1px solid var(--border); padding: 15px; overflow-y: auto; }
+#map { flex-grow: 1; }
+
+.vehiculo-card { 
+    background: var(--card); 
+    padding: 12px; 
+    border-radius: 6px; 
+    margin-bottom: 10px; 
+    display: flex; 
+    justify-content: space-between; 
+    border: 1px solid var(--border);
+    border-left: 4px solid #555;
+}
+
+/* Estados */
+.estado-68 { border-left-color: #2ecc71 !important; color: #2ecc71; }
+.estado-63 { border-left-color: #e74c3c !important; color: #e74c3c; }
+
+.overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 999; display: flex; justify-content: center; align-items: center; }
+.login-box { background: #222; padding: 30px; border-radius: 10px; text-align: center; color: white; }
+.login-box input { display: block; width: 100%; margin: 10px 0; padding: 10px; box-sizing: border-box; }
