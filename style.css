@@ -1,0 +1,12 @@
+body, html { margin: 0; padding: 0; height: 100%; font-family: sans-serif; background: #1a1a1a; color: white; }
+header { height: 60px; background: #000; display: flex; align-items: center; padding: 0 20px; justify-content: space-between; border-bottom: 2px solid #ff4400; }
+main { display: flex; height: calc(100% - 60px); }
+#sidebar { width: 300px; background: #252525; padding: 15px; border-right: 1px solid #444; overflow-y: auto; }
+#map { flex-grow: 1; height: 100%; }
+.overlay { position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.9); display: flex; justify-content: center; align-items: center; z-index: 1000; }
+.login-box { background: #333; padding: 30px; border-radius: 8px; text-align: center; }
+input { display: block; margin: 10px auto; padding: 10px; width: 80%; }
+button { padding: 10px 20px; background: #ff4400; border: none; color: white; cursor: pointer; font-weight: bold; }
+.vehiculo-card { background: #444; margin-bottom: 5px; padding: 10px; border-radius: 4px; display: flex; justify-content: space-between; }
+.estado-6-8 { color: #00ff00; } /* Disponible */
+.estado-6-3 { color: #ff0000; } /* En el lugar */
