@@ -50,3 +50,28 @@ header {
 
 .btn-logout { background: transparent; border: 1px solid #555; color: #ccc; padding: 5px 10px; cursor: pointer; border-radius: 4px; }
 .btn-emergency { width: 100%; padding: 12px; background: #b22222; color: white; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; }
+
+/* Estilo para los marcadores en el mapa */
+.leaflet-marker-icon {
+    background: #2ecc71; /* Color por defecto (Verde) */
+    border: 2px solid white;
+    border-radius: 20px;
+    color: white;
+    font-weight: bold;
+    text-align: center;
+    line-height: 25px;
+    box-shadow: 0 0 10px rgba(0,0,0,0.5);
+}
+
+/* Si quieres que brillen como en la imagen cuando están en emergencia */
+.estado-63-marker {
+    background: #e74c3c !important; /* Rojo */
+    box-shadow: 0 0 15px #e74c3c;
+    animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+    100% { transform: scale(1); }
+}
