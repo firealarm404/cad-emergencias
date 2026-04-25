@@ -7,9 +7,10 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="style.css">
 </head>
-<body class="dark-mode"> <div id="login-screen" class="overlay">
+<body class="dark-mode">
+
+    <div id="login-screen" class="overlay">
         <div class="login-box">
-            <img src="https://cdn-icons-png.flaticon.com/512/1022/1022334.png" width="80">
             <h2>CAD EMERGENCIAS</h2>
             <input type="email" id="email" placeholder="Correo electrónico">
             <input type="password" id="password" placeholder="Contraseña">
@@ -31,11 +32,13 @@
             <aside id="sidebar">
                 <div class="section-title">MATERIAL MAYOR</div>
                 <div id="lista-vehiculos"></div>
+                
                 <div id="controles-operador" style="display:none; margin-top: 20px;">
                     <div class="section-title">ACCIONES</div>
                     <button class="btn-emergency">NUEVA EMERGENCIA</button>
                 </div>
             </aside>
+            
             <div id="map"></div>
         </div>
     </div>
