@@ -16,55 +16,42 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 
 let map, markers = {};
-let layerDark, layerSatellite, layerControl;
+let layerDark, layerLight, layerSatellite;
 
-// --- GESTIÓN DE MAPA ---
+// --- INICIALIZAR MAPA CON 3 VISTAS ---
 function initMap() {
     if (map) return;
 
-    // 1. Definir Capas
-    layerDark = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-        attribution: '&copy; OpenStreetMap'
-    });
-
+    layerDark = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { attribution: '&copy; OpenStreetMap' });
+    layerLight = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap' });
     layerSatellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
         attribution: 'Esri, DigitalGlobe, GeoEye, Earthstar Geographics'
     });
 
-    // 2. Crear Mapa (Inicia en Satelital si prefieres)
     map = L.map('map', {
         center: [-33.1467, -70.2857],
         zoom: 14,
-        layers: [layerDark] // Capa inicial
+        layers: [layerDark] 
     });
 
-    // 3. Control de Capas (Botón arriba a la derecha)
     const baseMaps = {
-        "Mapa Oscuro": layerDark,
+        "Vista Oscura": layerDark,
+        "Vista Clara": layerLight,
         "Vista Satelital": layerSatellite
     };
+
     L.control.layers(baseMaps).addTo(map);
 }
 
-// --- CAMBIO DE MODO CLARO / OSCURO ---
+// --- CAMBIO DE TEMA INTERFAZ ---
 window.toggleTheme = () => {
     const body = document.body;
     const btn = document.getElementById('theme-toggle');
-    
-    if (body.classList.contains('dark-mode')) {
-        body.classList.replace('dark-mode', 'light-mode');
-        btn.innerText = "Modo Oscuro";
-        // Si quieres que el mapa también cambie al modo claro de calles:
-        map.removeLayer(layerDark);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-    } else {
-        body.classList.replace('light-mode', 'dark-mode');
-        btn.innerText = "Modo Claro";
-        initMap(); // Recarga la configuración oscura
-    }
+    body.classList.toggle('light-mode');
+    if (btn) btn.innerText = body.classList.contains('light-mode') ? "Modo Oscuro" : "Modo Claro";
 };
 
-// --- RESTO DE LÓGICA (LOGIN Y VEHÍCULOS) ---
+// --- AUTENTICACIÓN ---
 window.login = () => {
     const email = document.getElementById('email').value;
     const pass = document.getElementById('password').value;
@@ -74,46 +61,59 @@ window.login = () => {
 window.logout = () => signOut(auth);
 
 onAuthStateChanged(auth, async (user) => {
+    const loginScreen = document.getElementById('login-screen');
+    const mainApp = document.getElementById('main-app');
+    const userDisplay = document.getElementById('user-display');
+
     if (user) {
         const userDoc = await getDoc(doc(db, "usuarios", user.uid));
         if (userDoc.exists()) {
             const data = userDoc.data();
-            document.getElementById('login-screen').style.display = 'none';
-            document.getElementById('main-app').style.display = 'block';
-            document.getElementById('user-display').innerText = `${data.nombre}`;
+            if(loginScreen) loginScreen.style.display = 'none';
+            if(mainApp) mainApp.style.display = 'block';
+            if(userDisplay) userDisplay.innerText = data.nombre || "Usuario";
+
             if (data.rol === 'admin' || data.rol === 'operador') {
-                document.getElementById('controles-operador').style.display = 'block';
+                const ctrl = document.getElementById('controles-operador');
+                if(ctrl) ctrl.style.display = 'block';
             }
             initMap();
             escucharVehiculos();
         }
     } else {
-        document.getElementById('login-screen').style.display = 'flex';
-        document.getElementById('main-app').style.display = 'none';
+        if(loginScreen) loginScreen.style.display = 'flex';
+        if(mainApp) mainApp.style.display = 'none';
     }
 });
 
+// --- RASTREO REAL-TIME ---
 function escucharVehiculos() {
     onSnapshot(collection(db, "material_mayor"), (snapshot) => {
         const lista = document.getElementById('lista-vehiculos');
-        lista.innerHTML = '';
+        if(lista) lista.innerHTML = '';
+        
         snapshot.forEach((doc) => {
             const v = doc.data();
             const id = doc.id;
-            if (v.ubicacion) {
+            
+            if (v.ubicacion && v.estado) {
                 const lat = v.ubicacion.latitude;
                 const lng = v.ubicacion.longitude;
+
                 if (markers[id]) {
                     markers[id].setLatLng([lat, lng]);
                 } else {
-                    markers[id] = L.marker([lat, lng]).addTo(map).bindPopup(`<b>${id}</b>`);
+                    markers[id] = L.marker([lat, lng]).addTo(map).bindPopup(`<b>${id}</b><br>${v.tipo}`);
                 }
+
                 const claseEstado = `estado-${v.estado.replace('-', '')}`;
-                lista.innerHTML += `
-                    <div class="vehiculo-card ${claseEstado}">
-                        <div><strong>${id}</strong><br><small>${v.tipo}</small></div>
-                        <strong>${v.estado}</strong>
-                    </div>`;
+                if(lista) {
+                    lista.innerHTML += `
+                        <div class="vehiculo-card ${claseEstado}">
+                            <div><strong>${id}</strong><br><small>${v.tipo || 'Unidad'}</small></div>
+                            <strong>${v.estado}</strong>
+                        </div>`;
+                }
             }
         });
     });
