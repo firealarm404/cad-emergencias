@@ -46,31 +46,52 @@ const listaClaves = [
 
 function initMap() {
     if (map) return;
-    const layerLight = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { attribution: '&copy; CARTO' });
+    const layerLight = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png');
     const layerDark = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png');
     const layerSat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}');
-
     map = L.map('map', { center: [-33.19, -70.45], zoom: 11, layers: [layerLight] });
     L.control.layers({ "Mapa Gris Pro": layerLight, "Mapa Oscuro": layerDark, "Satelital": layerSat }).addTo(map);
 }
 
-// --- GESTIÓN DE CLAVES ---
+// --- LÓGICA DE MODAL Y CLAVES ---
 window.abrirMenuClaves = (id) => {
     unidadSeleccionada = id;
-    const nombre = nombresBrigadas[id] || id;
-    document.getElementById('modal-titulo').innerText = `${nombre} (${id})`;
-    const container = document.getElementById('claves-container');
-    container.innerHTML = '';
+    mostrarClavesPrincipales();
+    document.getElementById('modal-titulo').innerText = `${nombresBrigadas[id] || id}`;
+    document.getElementById('modal-claves').style.display = 'flex';
+};
 
+function mostrarClavesPrincipales() {
+    document.getElementById('view-claves').style.display = 'grid';
+    document.getElementById('view-bases').style.display = 'none';
+    const container = document.getElementById('view-claves');
+    container.innerHTML = '';
     listaClaves.forEach(clave => {
         const btn = document.createElement('button');
         btn.className = 'btn-clave';
-        btn.innerHTML = `<strong>${clave.cod}</strong> - ${clave.desc}`;
-        btn.onclick = () => actualizarEstado(clave.cod);
+        btn.innerHTML = `<strong>${clave.cod}</strong> ${clave.desc}`;
+        btn.onclick = () => {
+            if (clave.cod === "6-10") mostrarSeleccionBase();
+            else actualizarEstado(clave.cod);
+        };
         container.appendChild(btn);
     });
-    document.getElementById('modal-claves').style.display = 'flex';
-};
+}
+
+function mostrarSeleccionBase() {
+    document.getElementById('view-claves').style.display = 'none';
+    document.getElementById('view-bases').style.display = 'block';
+    const container = document.getElementById('bases-container');
+    container.innerHTML = '';
+    // Usamos las claves del diccionario como opciones de base
+    Object.keys(nombresBrigadas).forEach(idBase => {
+        const btn = document.createElement('button');
+        btn.className = 'btn-clave';
+        btn.innerHTML = nombresBrigadas[idBase];
+        btn.onclick = () => actualizarEstado(`6-10 (${idBase})`);
+        container.appendChild(btn);
+    });
+}
 
 window.cerrarModal = () => document.getElementById('modal-claves').style.display = 'none';
 
@@ -78,16 +99,15 @@ async function actualizarEstado(nuevaClave) {
     try {
         await updateDoc(doc(db, "material_mayor", unidadSeleccionada), { estado: nuevaClave });
         cerrarModal();
-    } catch (e) { alert("Error al actualizar"); }
+    } catch (e) { console.error(e); }
 }
 
-// --- FIREBASE & RASTREO ---
+// --- FIREBASE ---
 window.login = () => {
     const email = document.getElementById('email').value;
     const pass = document.getElementById('password').value;
-    signInWithEmailAndPassword(auth, email, pass).catch(err => alert("Error: " + err.message));
+    signInWithEmailAndPassword(auth, email, pass);
 };
-
 window.logout = () => signOut(auth);
 
 onAuthStateChanged(auth, async (user) => {
@@ -96,7 +116,7 @@ onAuthStateChanged(auth, async (user) => {
         if (userDoc.exists()) {
             document.getElementById('login-screen').style.display = 'none';
             document.getElementById('main-app').style.display = 'block';
-            document.getElementById('user-display').innerText = userDoc.data().nombre || "Usuario";
+            document.getElementById('user-display').innerText = userDoc.data().nombre;
             initMap();
             escucharVehiculos();
         }
@@ -109,7 +129,7 @@ onAuthStateChanged(auth, async (user) => {
 function escucharVehiculos() {
     onSnapshot(collection(db, "material_mayor"), (snapshot) => {
         const lista = document.getElementById('lista-vehiculos');
-        if(lista) lista.innerHTML = '';
+        lista.innerHTML = '';
         snapshot.forEach((docSnap) => {
             const v = docSnap.data();
             const id = docSnap.id;
@@ -118,25 +138,22 @@ function escucharVehiculos() {
             if (v.ubicacion) {
                 const lat = v.ubicacion.latitude;
                 const lng = v.ubicacion.longitude;
-                const esEmergencia = v.estado === '6-3';
-
+                const estado = v.estado || "6-8";
+                
                 const customIcon = L.divIcon({
-                    className: `custom-marker ${esEmergencia ? 'marker-rojo' : ''}`,
+                    className: `custom-marker ${estado === '6-3' ? 'marker-rojo' : (estado.includes('6-10') ? 'marker-azul' : '')}`,
                     html: `<span>${id}</span>`,
                     iconSize: [45, 22]
                 });
 
-                if (markers[id]) {
-                    markers[id].setLatLng([lat, lng]).setIcon(customIcon);
-                } else {
-                    markers[id] = L.marker([lat, lng], { icon: customIcon }).addTo(map).bindPopup(nombreReal);
-                }
+                if (markers[id]) markers[id].setLatLng([lat, lng]).setIcon(customIcon);
+                else markers[id] = L.marker([lat, lng], { icon: customIcon }).addTo(map).bindPopup(nombreReal);
 
-                const claseEstado = `estado-${(v.estado || "6-8").replace('-', '')}`;
+                const claseEstado = `estado-${estado.split(' ')[0].replace('-', '')}`;
                 lista.innerHTML += `
                     <div class="vehiculo-card ${claseEstado}" onclick="abrirMenuClaves('${id}')">
                         <div><strong>${nombreReal}</strong><br><small>${id}</small></div>
-                        <strong>${v.estado || "6-8"}</strong>
+                        <strong>${estado}</strong>
                     </div>`;
             }
         });
@@ -144,7 +161,6 @@ function escucharVehiculos() {
 }
 
 window.toggleTheme = () => {
-    const body = document.body;
-    body.classList.toggle('light-mode');
-    document.getElementById('theme-toggle').innerText = body.classList.contains('light-mode') ? "Modo Oscuro" : "Modo Claro";
+    document.body.classList.toggle('light-mode');
+    document.getElementById('theme-toggle').innerText = document.body.classList.contains('light-mode') ? "Modo Oscuro" : "Modo Claro";
 };
