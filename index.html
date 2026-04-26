@@ -43,8 +43,14 @@
                 <h3 id="modal-titulo">Actualizar Estado</h3>
                 <button onclick="cerrarModal()" class="btn-close">&times;</button>
             </div>
-            <div class="claves-grid" id="claves-container">
-                </div>
+            
+            <div id="view-claves" class="claves-grid"></div>
+
+            <div id="view-bases" style="display:none;">
+                <p style="margin-bottom: 15px; color: #aaa;">Seleccione la base de destino:</p>
+                <div class="claves-grid" id="bases-container"></div>
+                <button onclick="mostrarClavesPrincipales()" style="margin-top: 15px; background: none; border: 1px solid #555; color: white; padding: 10px; cursor: pointer; width: 100%;">Volver</button>
+            </div>
         </div>
     </div>
 
