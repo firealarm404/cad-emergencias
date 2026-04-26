@@ -1,36 +1,14 @@
-:root {
-    --bg-main: #121212;
-    --bg-side: #1e1e1e;
-    --text: #ffffff;
-    --border: #333;
-    --card: #2a2a2a;
-    --accent: #ff4500;
-}
+:root { --bg-main: #121212; --bg-side: #1e1e1e; --text: #ffffff; --border: #333; --card: #2a2a2a; --accent: #ff4500; }
+.light-mode { --bg-main: #f0f2f5; --bg-side: #ffffff; --text: #1c1e21; --border: #ddd; --card: #f8f9fa; }
 
-.light-mode {
-    --bg-main: #f0f2f5;
-    --bg-side: #ffffff;
-    --text: #1c1e21;
-    --border: #ddd;
-    --card: #f8f9fa;
-}
-
-body, html { margin: 0; padding: 0; height: 100%; font-family: 'Segoe UI', Tahoma, sans-serif; background: var(--bg-main); color: var(--text); overflow: hidden; }
-
-header { 
-    height: 60px; background: #000; color: white; display: flex; 
-    align-items: center; justify-content: space-between; padding: 0 20px; 
-    border-bottom: 2px solid var(--accent); 
-}
-
+body, html { margin: 0; padding: 0; height: 100%; font-family: 'Segoe UI', sans-serif; background: var(--bg-main); color: var(--text); overflow: hidden; }
+header { height: 60px; background: #000; color: white; display: flex; align-items: center; justify-content: space-between; padding: 0 20px; border-bottom: 2px solid var(--accent); }
 .container { display: flex; height: calc(100vh - 60px); }
-
 #sidebar { width: 320px; background: var(--bg-side); border-right: 1px solid var(--border); padding: 15px; overflow-y: auto; }
 #map { flex-grow: 1; }
 
 .section-title { font-size: 11px; color: #888; margin-bottom: 15px; letter-spacing: 1px; }
 
-/* Tarjetas de la lista lateral */
 .vehiculo-card { 
     background: var(--card); padding: 12px; border-radius: 6px; margin-bottom: 8px; 
     display: flex; justify-content: space-between; align-items: center;
@@ -39,37 +17,23 @@ header {
 }
 .vehiculo-card:hover { border-color: var(--accent); transform: translateX(5px); }
 
-/* Colores de Estado */
-.estado-68 { border-left-color: #2ecc71 !important; color: #2ecc71; } /* Disponible */
-.estado-63 { border-left-color: #e74c3c !important; color: #e74c3c; } /* En el lugar */
+/* Estados */
+.estado-68 { border-left-color: #2ecc71 !important; color: #2ecc71; }
+.estado-63 { border-left-color: #e74c3c !important; color: #e74c3c; }
+.estado-610 { border-left-color: #3498db !important; color: #3498db; }
 
-/* Marcadores en el Mapa */
-.custom-marker {
-    background: #2ecc71; border: 2px solid white; border-radius: 12px;
-    color: white; font-weight: bold; text-align: center; line-height: 20px;
-    box-shadow: 0 0 8px rgba(0,0,0,0.4); font-size: 11px;
-}
+/* Marcadores */
+.custom-marker { background: #2ecc71; border: 2px solid white; border-radius: 12px; color: white; font-weight: bold; text-align: center; line-height: 20px; box-shadow: 0 0 8px rgba(0,0,0,0.4); font-size: 11px; }
 .marker-rojo { background: #e74c3c; box-shadow: 0 0 12px #e74c3c; }
+.marker-azul { background: #3498db; }
 
-/* Modal Pop-up */
-.modal-overlay {
-    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-    background: rgba(0,0,0,0.85); z-index: 10000;
-    display: flex; justify-content: center; align-items: center;
-}
-.modal-content {
-    background: var(--bg-side); border: 1px solid var(--border);
-    width: 90%; max-width: 550px; border-radius: 10px; padding: 25px;
-}
+/* Modal */
+.modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 10000; display: flex; justify-content: center; align-items: center; }
+.modal-content { background: var(--bg-side); border: 1px solid var(--border); width: 90%; max-width: 550px; border-radius: 10px; padding: 25px; }
 .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
 .btn-close { background: none; border: none; color: white; font-size: 28px; cursor: pointer; }
-
 .claves-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.btn-clave {
-    background: var(--card); border: 1px solid var(--border); color: var(--text);
-    padding: 14px; border-radius: 6px; cursor: pointer; text-align: left;
-    font-size: 13px; transition: 0.2s;
-}
+.btn-clave { background: var(--card); border: 1px solid var(--border); color: var(--text); padding: 14px; border-radius: 6px; cursor: pointer; text-align: left; font-size: 13px; transition: 0.2s; }
 .btn-clave:hover { background: var(--accent); color: white; }
 
 /* Login */
