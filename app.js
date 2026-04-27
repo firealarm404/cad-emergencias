@@ -15,104 +15,114 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-let map, markers = {};
-let puntoEmergencia = null, tempMarker = null;
+let map, markers = {}, vehiculosData = [];
+let puntoEmergencia = null, cronoInterval = null, segundos = 0;
+let unidadSeleccionada = null;
 
-// Funciones globales vinculadas a window para que el HTML las vea
+// --- FUNCIONES GLOBALIZADAS PARA BOTONES ---
 window.login = () => {
-    const email = document.getElementById('email').value;
-    const pass = document.getElementById('password').value;
-    signInWithEmailAndPassword(auth, email, pass).catch(e => alert("Error de acceso"));
+    signInWithEmailAndPassword(auth, document.getElementById('email').value, document.getElementById('password').value);
 };
-
 window.logout = () => signOut(auth);
 
-window.abrirModalEmergencia = () => {
-    document.getElementById('modal-emergencia').style.display = 'flex';
-    if (tempMarker) map.removeLayer(tempMarker);
-    document.getElementById('em-direccion').value = '';
+// CLAVES DE MATERIAL MAYOR
+window.abrirMenuClaves = (id) => {
+    unidadSeleccionada = id;
+    document.getElementById('titulo-unidad').innerText = `UNIDAD ${id}`;
+    const grid = document.getElementById('grid-claves');
+    const claves = ["6-0", "6-3", "6-7", "6-8", "6-9", "6-10", "6-13", "6-14"];
+    grid.innerHTML = claves.map(c => `<button class="btn-clave" onclick="cambiarEstado('${c}')">${c}</button>`).join('');
+    document.getElementById('modal-claves').style.display = 'flex';
 };
 
-window.cerrarModalEmergencia = () => {
+window.cerrarModalClaves = () => document.getElementById('modal-claves').style.display = 'none';
+
+window.cambiarEstado = async (estado) => {
+    await updateDoc(doc(db, "material_mayor", unidadSeleccionada), { estado: estado });
+    cerrarModalClaves();
+};
+
+// EMERGENCIA Y DESPACHO
+window.abrirModalEmergencia = () => document.getElementById('modal-emergencia').style.display = 'flex';
+window.cerrarModalEmergencia = () => document.getElementById('modal-emergencia').style.display = 'none';
+
+window.generarDespacho = () => {
+    if(!puntoEmergencia) return alert("Selecciona punto en el mapa");
     document.getElementById('modal-emergencia').style.display = 'none';
+    document.getElementById('modal-despacho-activo').style.display = 'flex';
+    document.getElementById('despacho-titulo-tipo').innerText = document.getElementById('em-tipo').value;
+    iniciarCronometro();
+    calcularCercania();
 };
 
-window.crearEmergencia = () => {
-    const tipo = document.getElementById('em-tipo').value;
-    if (!puntoEmergencia) return alert("Por favor, haz clic en el mapa para marcar la ubicación.");
-    alert(`Despacho Generado: ${tipo}`);
-    window.cerrarModalEmergencia();
+function iniciarCronometro() {
+    segundos = 0;
+    clearInterval(cronoInterval);
+    cronoInterval = setInterval(() => {
+        segundos++;
+        let min = Math.floor(segundos/60).toString().padStart(2,'0');
+        let seg = (segundos%60).toString().padStart(2,'0');
+        document.getElementById('cronometro-emergencia').innerText = `${min}:${seg}`;
+    }, 1000);
+}
+
+window.finalizarEmergencia = () => {
+    clearInterval(cronoInterval);
+    document.getElementById('modal-despacho-activo').style.display = 'none';
 };
 
+function calcularCercania() {
+    const lista = document.getElementById('unidades-cercanas');
+    // Filtramos unidades disponibles y calculamos distancia simple (Euclidiana)
+    const sugeridos = vehiculosData
+        .map(v => {
+            const d = Math.sqrt(Math.pow(v.lat - puntoEmergencia.lat, 2) + Math.pow(v.lng - puntoEmergencia.lng, 2));
+            return { ...v, dist: d };
+        })
+        .sort((a,b) => a.dist - b.dist);
+
+    lista.innerHTML = sugeridos.map(v => `
+        <div class="sugerido-card">
+            <span>${v.id} (${v.estado})</span>
+            <button onclick="despacharUnidad('${v.id}')">DESPACHAR</button>
+        </div>
+    `).join('');
+}
+
+window.despacharUnidad = (id) => {
+    document.getElementById('unidades-asignadas').innerHTML += `<div class="asignada-tag">${id} EN RUTA</div>`;
+};
+
+// --- MAPA Y FIREBASE ---
 function initMap() {
-    if (map) return;
-
-    // 1. EL MAPA DE TU IMAGEN (CartoDB Positron)
-    const vistaActual = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-        attribution: '© CartoDB'
-    });
-
-    // 2. VISTA CALLE (OpenStreetMap)
-    const vistaCalle = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png');
-
-    // 3. VISTA SATELITAL (Esri)
-    const vistaSat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}');
-
-    map = L.map('map', {
-        center: [-33.19, -70.45],
-        zoom: 11,
-        layers: [vistaActual] 
-    });
-
-    L.control.layers({
-        "Vista Actual (Gris)": vistaActual,
-        "Mapa de Calles": vistaCalle,
-        "Satélite": vistaSat
-    }).addTo(map);
+    map = L.map('map').setView([-33.19, -70.45], 11);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png').addTo(map);
 
     map.on('click', (e) => {
-        if (document.getElementById('modal-emergencia').style.display === 'flex') {
+        if(document.getElementById('modal-emergencia').style.display === 'flex') {
             puntoEmergencia = e.latlng;
-            document.getElementById('em-direccion').value = `${e.latlng.lat.toFixed(5)}, ${e.latlng.lng.toFixed(5)}`;
-            if (tempMarker) map.removeLayer(tempMarker);
-            tempMarker = L.marker(e.latlng).addTo(map);
+            document.getElementById('em-direccion').value = `${e.latlng.lat.toFixed(4)},${e.latlng.lng.toFixed(4)}`;
         }
     });
 }
 
-function escucharVehiculos() {
-    onSnapshot(collection(db, "material_mayor"), (snap) => {
-        const lista = document.getElementById('lista-vehiculos');
-        lista.innerHTML = '';
-        snap.forEach(d => {
-            const v = d.data(), id = d.id;
-            const pos = [v.ubicacion.latitude, v.ubicacion.longitude];
-            
-            // Color de marcador (Simulando tu imagen)
-            let color = v.estado?.startsWith('6-3') ? '#ff0000' : v.estado?.startsWith('6-8') ? '#2ecc71' : '#f39c12';
-            
-            const icon = L.divIcon({
-                className: 'custom-icon',
-                html: `<div style="background:${color}" class="map-label"><span>${id}</span></div>`,
-                iconSize: [40, 25]
-            });
-
-            if (markers[id]) markers[id].setLatLng(pos).setIcon(icon);
-            else markers[id] = L.marker(pos, {icon}).addTo(map);
-
-            lista.innerHTML += `<div class="vehiculo-card"><strong>${id}</strong> - ${v.estado || '6-10'}</div>`;
-        });
-    });
-}
-
 onAuthStateChanged(auth, (u) => {
-    if (u) {
+    if(u) {
         document.getElementById('login-screen').style.display = 'none';
         document.getElementById('main-app').style.display = 'block';
         initMap();
-        escucharVehiculos();
-    } else {
-        document.getElementById('login-screen').style.display = 'flex';
-        document.getElementById('main-app').style.display = 'none';
+        onSnapshot(collection(db, "material_mayor"), (snap) => {
+            const listUI = document.getElementById('lista-vehiculos');
+            listUI.innerHTML = '';
+            vehiculosData = [];
+            snap.forEach(d => {
+                const v = d.data();
+                vehiculosData.push({id: d.id, lat: v.ubicacion.latitude, lng: v.ubicacion.longitude, estado: v.estado});
+                listUI.innerHTML += `<div class="vehiculo-card" onclick="abrirMenuClaves('${d.id}')"><strong>${d.id}</strong> - ${v.estado}</div>`;
+                // Actualizar Marcador
+                if(markers[d.id]) markers[d.id].setLatLng([v.ubicacion.latitude, v.ubicacion.longitude]);
+                else markers[d.id] = L.marker([v.ubicacion.latitude, v.ubicacion.longitude]).addTo(map).bindPopup(d.id);
+            });
+        });
     }
 });
