@@ -3,12 +3,12 @@ import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from
 import { getFirestore, collection, onSnapshot, doc, updateDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyBWixMbVJrcIgK5eIkHcnx91dCdUZVWEJY",
-  authDomain: "cad-emergencias-24da0.firebaseapp.com",
-  projectId: "cad-emergencias-24da0",
-  storageBucket: "cad-emergencias-24da0.firebasestorage.app",
-  messagingSenderId: "799146039442",
-  appId: "1:799146039442:web:660447d59af47a94e96e4b"
+    apiKey: "AIzaSyBWixMbVJrcIgK5eIkHcnx91dCdUZVWEJY",
+    authDomain: "cad-emergencias-24da0.firebaseapp.com",
+    projectId: "cad-emergencias-24da0",
+    storageBucket: "cad-emergencias-24da0.firebasestorage.app",
+    messagingSenderId: "799146039442",
+    appId: "1:799146039442:web:660447d59af47a94e96e4b"
 };
 
 const app = initializeApp(firebaseConfig);
@@ -16,15 +16,15 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 
 let map, markers = {};
-let unidadSeleccionada = null;
+window.unidadSeleccionada = null;
 let basesCache = {}; 
 
 const listaClaves = [
     { cod: "6-3", desc: "En el lugar" }, 
     { cod: "6-7", desc: "Situación controlada" },
-    { cod: "6-8", desc: "Disponible" }, // Solo cambia el color/estado, no mueve el marcador
+    { cod: "6-8", desc: "Disponible" },
     { cod: "6-9", desc: "Se retira del lugar" }, 
-    { cod: "6-10", desc: "En Base (Origen/Cobertura)" }, // Esta es la que mueve
+    { cod: "6-10", desc: "En Base (Origen/Cobertura)" },
     { cod: "6-11", desc: "En panne" }, 
     { cod: "6-12", desc: "Sufre colisión" },
     { cod: "6-13", desc: "Otros Trámites" }, 
@@ -34,29 +34,35 @@ const listaClaves = [
     { cod: "6-19", desc: "Sale del túnel" }
 ];
 
-async function cargarBases() {
-    const snap = await getDocs(collection(db, "bases"));
-    snap.forEach(d => { basesCache[d.id] = d.data(); });
-}
+// --- FUNCIONES GLOBALES (ACCESIBLES DESDE EL HTML) ---
 
-function initMap() {
-    if (map) return;
-    const vistaActual = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { attribution: '© CARTO' });
-    const satelital = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: '© Esri' });
-    const calles = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OSM' });
+window.login = () => {
+    const e = document.getElementById('email').value;
+    const p = document.getElementById('password').value;
+    signInWithEmailAndPassword(auth, e, p).catch(() => alert("Acceso Denegado"));
+};
 
-    map = L.map('map', { center: [-33.19, -70.45], zoom: 11, layers: [vistaActual] });
-    const baseMaps = { "Vista Actual": vistaActual, "Vista Satelital": satelital, "Mapa de Calles": calles };
-    L.control.layers(baseMaps).addTo(map);
-}
+window.logout = () => signOut(auth);
 
-window.cerrarModal = () => { document.getElementById('modal-claves').style.display = 'none'; };
+window.toggleTheme = () => document.body.classList.toggle('light-mode');
+
+window.abrirModalEmergencia = () => {
+    document.getElementById('modal-emergencia').style.display = 'flex';
+};
+
+window.cerrarModalEmergencia = () => {
+    document.getElementById('modal-emergencia').style.display = 'none';
+};
 
 window.abrirMenuClaves = (id) => {
-    unidadSeleccionada = id;
-    mostrarClavesPrincipales();
+    window.unidadSeleccionada = id;
+    window.mostrarClavesPrincipales();
     document.getElementById('modal-titulo').innerText = `Unidad: ${id}`;
     document.getElementById('modal-claves').style.display = 'flex';
+};
+
+window.cerrarModal = () => { 
+    document.getElementById('modal-claves').style.display = 'none'; 
 };
 
 window.mostrarClavesPrincipales = () => {
@@ -79,13 +85,62 @@ window.mostrarClavesPrincipales = () => {
     });
 };
 
+window.guardarTramite = () => {
+    const desc = document.getElementById('input-613').value;
+    if (desc) actualizarEstado(`6-13 (${desc})`);
+};
+
+window.crearEmergencia = () => {
+    const tipo = document.getElementById('em-tipo').value;
+    const direccion = document.getElementById('em-direccion').value;
+    
+    if (!direccion) {
+        alert("Por favor, marca un punto en el mapa primero.");
+        return;
+    }
+
+    document.getElementById('modal-emergencia').style.display = 'none';
+    document.getElementById('modal-gestion').style.display = 'flex';
+    document.getElementById('gest-titulo').innerText = tipo.toUpperCase();
+    document.getElementById('gest-lugar').innerText = direccion;
+    
+    console.log("Emergencia generada:", tipo);
+};
+
+window.cerrarGestion = () => {
+    document.getElementById('modal-gestion').style.display = 'none';
+};
+
+// --- LÓGICA INTERNA ---
+
+async function cargarBases() {
+    const snap = await getDocs(collection(db, "bases"));
+    snap.forEach(d => { basesCache[d.id] = d.data(); });
+}
+
+function initMap() {
+    if (map) return;
+    const vistaActual = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { attribution: '© CARTO' });
+    const satelital = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: '© Esri' });
+    
+    map = L.map('map', { center: [-33.19, -70.45], zoom: 11, layers: [vistaActual] });
+    L.control.layers({ "Mapa": vistaActual, "Satélite": satelital }).addTo(map);
+
+    // Capturar click en el mapa para llenar la ubicación
+    map.on('click', (e) => {
+        const coords = `${e.latlng.lat.toFixed(6)}, ${e.latlng.lng.toFixed(6)}`;
+        document.getElementById('em-direccion').value = coords;
+        // Al hacer click en el mapa, abrimos el modal si no está abierto
+        window.abrirModalEmergencia();
+    });
+}
+
 function mostrarSeleccionBase() {
     document.getElementById('view-claves').style.display = 'none';
     document.getElementById('view-bases').style.display = 'block';
     const container = document.getElementById('bases-container');
     container.innerHTML = '';
     
-    // Opción para volver a Base Original
     const btnOrig = document.createElement('button');
     btnOrig.className = 'btn-clave';
     btnOrig.style.borderColor = "#ff4500";
@@ -108,14 +163,9 @@ function mostrarInputTramite() {
     document.getElementById('input-613').value = '';
 }
 
-window.guardarTramite = () => {
-    const desc = document.getElementById('input-613').value;
-    if (desc) actualizarEstado(`6-13 (${desc})`);
-};
-
 async function actualizarEstado(val) {
     try {
-        await updateDoc(doc(db, "material_mayor", unidadSeleccionada), { estado: val });
+        await updateDoc(doc(db, "material_mayor", window.unidadSeleccionada), { estado: val });
         window.cerrarModal();
     } catch (e) { console.error(e); }
 }
@@ -130,28 +180,16 @@ function escucharVehiculos() {
             const v = d.data();
             const id = d.id;
             const est = v.estado || "6-10";
-            
-            let lat, lng;
+            let lat = v.ubicacion.latitude;
+            let lng = v.ubicacion.longitude;
 
-            // LÓGICA DE MOVIMIENTO: Solo si es 6-10 se recalcula la base
             if (est.includes('6-10')) {
                 const match = est.match(/\(([^)]+)\)/);
                 const idBase = match ? match[1] : null;
-                
                 if (idBase && basesCache[idBase]) {
-                    // Mover a base de cobertura
                     lat = basesCache[idBase].ubicacion.latitude;
                     lng = basesCache[idBase].ubicacion.longitude;
-                } else {
-                    // Es 6-10 a secas: Mover a base original
-                    lat = v.ubicacion.latitude;
-                    lng = v.ubicacion.longitude;
                 }
-            } else {
-                // Si NO es 6-10 (ej: es 6-8), mantiene la posición actual que tenga en Firebase
-                // o la última base conocida si no tiene GPS activo.
-                lat = v.ubicacion.latitude;
-                lng = v.ubicacion.longitude;
             }
 
             const posKey = `${lat.toFixed(6)},${lng.toFixed(6)}`;
@@ -177,6 +215,8 @@ function escucharVehiculos() {
     });
 }
 
+// --- INICIO DE SESIÓN Y CARGA ---
+
 onAuthStateChanged(auth, async (u) => {
     if (u) {
         document.getElementById('login-screen').style.display = 'none';
@@ -186,60 +226,3 @@ onAuthStateChanged(auth, async (u) => {
         escucharVehiculos();
     }
 });
-
-window.login = () => {
-    const e = document.getElementById('email').value;
-    const p = document.getElementById('password').value;
-    signInWithEmailAndPassword(auth, e, p).catch(() => alert("Acceso Denegado"));
-};
-window.logout = () => signOut(auth);
-window.toggleTheme = () => document.body.classList.toggle('light-mode');
-window.mostrarClavesPrincipales = mostrarClavesPrincipales;
-window.mostrarInputTramite = mostrarInputTramite;
-
-// --- FUNCIONES GLOBALES PARA MODALES ---
-
-// Abre el formulario de Nueva Emergencia (el botón +)
-window.abrirModalEmergencia = () => {
-    document.getElementById('modal-emergencia').style.display = 'flex';
-};
-
-// Cierra el formulario de Nueva Emergencia
-window.cerrarModalEmergencia = () => {
-    document.getElementById('modal-emergencia').style.display = 'none';
-};
-
-// Abre la ventana de claves cuando tocas un vehículo del sidebar
-window.abrirModalClaves = (idUnidad) => {
-    window.unidadSeleccionada = idUnidad; // Guardamos qué unidad es
-    document.getElementById('modal-titulo').innerText = idUnidad;
-    document.getElementById('modal-claves').style.display = 'flex';
-    // Aquí podrías llamar a una función que cargue las claves en 'view-claves'
-};
-
-// Cierra la ventana de claves
-window.cerrarModal = () => {
-    document.getElementById('modal-claves').style.display = 'none';
-};
-
-// Esta función se activa al presionar "GENERAR DESPACHO"
-window.crearEmergencia = () => {
-    const tipo = document.getElementById('em-tipo').value;
-    const direccion = document.getElementById('em-direccion').value;
-    
-    if (!direccion) {
-        alert("Por favor, marca un punto en el mapa primero.");
-        return;
-    }
-
-    // Cerramos el formulario y abrimos la GESTIÓN (Cronómetro)
-    document.getElementById('modal-emergencia').style.display = 'none';
-    document.getElementById('modal-gestion').style.display = 'flex';
-    
-    // Aquí inicias tu lógica de cronómetro y asignación
-    console.log("Emergencia creada:", tipo);
-};
-
-window.cerrarGestion = () => {
-    document.getElementById('modal-gestion').style.display = 'none';
-};
