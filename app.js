@@ -57,7 +57,8 @@ function escucharVehiculos() {
             const v = d.data(), id = d.id, est = v.estado || "6-10";
             let lat, lng;
 
-            if (est.startsWith('6-10')) {
+            // LÓGICA DE POSICIÓN: Detecta si es cobertura o base original
+            if (est.startsWith('6-10') && est.includes('(')) {
                 const match = est.match(/\(([^)]+)\)/);
                 const idBase = match ? match[1] : null;
                 if (idBase && basesCache[idBase]) {
@@ -67,6 +68,7 @@ function escucharVehiculos() {
                     lat = v.ubicacion.latitude; lng = v.ubicacion.longitude;
                 }
             } else {
+                // Para 6-10 (limpio), 6-3, 6-8, etc. usa la ubicación del documento
                 lat = v.ubicacion.latitude; lng = v.ubicacion.longitude;
             }
 
@@ -93,7 +95,7 @@ function escucharVehiculos() {
     });
 }
 
-// GESTIÓN DE CLAVES Y BASES
+// GESTIÓN DE CLAVES
 window.abrirMenuClaves = (id) => {
     unidadSeleccionada = id;
     document.getElementById('modal-titulo').innerText = `Unidad: ${id}`;
@@ -114,7 +116,7 @@ window.mostrarClavesPrincipales = () => {
         btn.onclick = () => {
             if (c.cod === "6-10") mostrarSeleccionBase();
             else if (c.cod === "6-13") mostrarInputTramite();
-            else actualizarEstado(c.cod);
+            else window.actualizarEstado(c.cod);
         };
         container.appendChild(btn);
     });
@@ -128,15 +130,15 @@ function mostrarSeleccionBase() {
 
     const btnOrig = document.createElement('button');
     btnOrig.className = 'btn-clave'; btnOrig.style.gridColumn = "span 2";
-    btnOrig.style.background = "#333"; btnOrig.style.border = "2px solid var(--azul)";
-    btnOrig.innerHTML = `<strong>6-10</strong> VOLVER BASE ORIGINAL`;
-    btnOrig.onclick = () => actualizarEstado("6-10");
+    btnOrig.style.background = "#333"; btnOrig.style.border = "2px solid #3498db";
+    btnOrig.innerHTML = `<strong>REESTABLECER BASE ORIGINAL</strong>`;
+    btnOrig.onclick = () => window.actualizarEstado("6-10");
     cont.appendChild(btnOrig);
     
     Object.keys(basesCache).forEach(idB => {
         const btn = document.createElement('button');
         btn.className = 'btn-clave'; btn.innerText = basesCache[idB].nombre;
-        btn.onclick = () => actualizarEstado(`6-10 (${idB})`);
+        btn.onclick = () => window.actualizarEstado(`6-10 (${idB})`);
         cont.appendChild(btn);
     });
 }
@@ -149,17 +151,17 @@ function mostrarInputTramite() {
 
 window.guardarTramite = () => {
     const val = document.getElementById('input-613').value;
-    if(val) actualizarEstado(`6-13 (${val})`);
+    if(val) window.actualizarEstado(`6-13 (${val})`);
 };
 
-async function actualizarEstado(val) {
+window.actualizarEstado = async (val) => {
     await updateDoc(doc(db, "material_mayor", unidadSeleccionada), { estado: val });
     window.cerrarModal();
-}
+};
 
 window.cerrarModal = () => document.getElementById('modal-claves').style.display = 'none';
 
-// EMERGENCIA Y DISTANCIAS
+// EMERGENCIAS
 function getDistancia(lat1, lon1, lat2, lon2) {
     const R = 6371;
     const dLat = (lat2-lat1)*Math.PI/180;
@@ -172,7 +174,6 @@ window.abrirModalEmergencia = () => {
     document.getElementById('modal-emergencia').style.display = 'flex';
     puntoEmergencia = null;
     document.getElementById('em-direccion').value = '';
-    document.getElementById('em-notas').value = '';
 };
 
 window.cerrarModalEmergencia = () => document.getElementById('modal-emergencia').style.display = 'none';
@@ -214,8 +215,8 @@ function abrirGestion(data) {
         const b = document.createElement('button');
         b.className = 'btn-sugerido';
         b.innerHTML = `<strong>${u.id}</strong> a ${u.dist.toFixed(1)} km`;
-        b.onclick = () => {
-            updateDoc(doc(db, "material_mayor", u.id), { estado: "6-3 (Despachada)" });
+        b.onclick = async () => {
+            await updateDoc(doc(db, "material_mayor", u.id), { estado: "6-3 (Despachada)" });
             const item = document.createElement('div');
             item.className = 'vehiculo-card estado-63';
             item.innerHTML = `<strong>${u.id}</strong> - ASIGNADA`;
@@ -242,9 +243,7 @@ onAuthStateChanged(auth, async (u) => {
 });
 
 window.login = () => {
-    signInWithEmailAndPassword(auth, document.getElementById('email').value, document.getElementById('password').value).catch(e => alert(e.message));
+    signInWithEmailAndPassword(auth, document.getElementById('email').value, document.getElementById('password').value);
 };
 window.logout = () => signOut(auth);
 window.toggleTheme = () => document.body.classList.toggle('light-mode');
-window.mostrarClavesPrincipales = mostrarClavesPrincipales;
-window.mostrarInputTramite = mostrarInputTramite;
