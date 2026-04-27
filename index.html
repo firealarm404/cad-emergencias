@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CAD Emergencias - Sistema de Despacho</title>
+    <title>CAD Emergencias - Full Despacho</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="style.css">
 </head>
@@ -19,10 +19,9 @@
 
     <div id="main-app" style="display:none;">
         <header>
-            <div class="brand"><strong>CAD</strong> | MONITOREO Y DESPACHO</div>
-            <div class="header-controls">
-                <button class="btn-logout" onclick="logout()">Salir</button>
-            </div>
+            <div class="brand"><strong>CAD</strong> | SISTEMA INTEGRAL</div>
+            <div id="reloj-sistema" style="font-family: monospace; font-size: 1.2em;">00:00:00</div>
+            <button class="btn-logout" onclick="logout()">Salir</button>
         </header>
 
         <div class="container">
@@ -36,6 +35,37 @@
         <button id="btn-nueva-emergencia" onclick="abrirModalEmergencia()">+</button>
     </div>
 
+    <div id="modal-claves" class="modal-overlay" style="display:none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="titulo-unidad">UNIDAD</h3>
+                <button onclick="cerrarModalClaves()" class="btn-close">&times;</button>
+            </div>
+            <div class="claves-grid" id="grid-claves">
+                </div>
+        </div>
+    </div>
+
+    <div id="modal-despacho-activo" class="modal-overlay" style="display:none;">
+        <div class="modal-content large-modal">
+            <div class="modal-header">
+                <h2 id="despacho-titulo-tipo">INCENDIO FORESTAL</h2>
+                <div id="cronometro-emergencia">00:00</div>
+            </div>
+            <div class="despacho-body">
+                <div class="col">
+                    <h4>UNIDADES SUGERIDAS (POR CERCANÍA)</h4>
+                    <div id="unidades-cercanas"></div>
+                </div>
+                <div class="col">
+                    <h4>UNIDADES DESPACHADAS</h4>
+                    <div id="unidades-asignadas"></div>
+                    <button onclick="finalizarEmergencia()" class="btn-finalizar">FINALIZAR SERVICIO</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div id="modal-emergencia" class="modal-overlay transparent-bg" style="display:none;">
         <div class="modal-content float-form">
             <div class="modal-header">
@@ -43,41 +73,15 @@
                 <button onclick="cerrarModalEmergencia()" class="btn-close">&times;</button>
             </div>
             <div class="form-emergencia">
-                <label>TIPO DE EMERGENCIA</label>
+                <label>TIPO</label>
                 <select id="em-tipo">
-                    <optgroup label="🔥 INCENDIO">
-                        <option value="Amago equipos mineros">Amago de incendio equipos mineros</option>
-                        <option value="Incendio Forestal">Incendio Forestal</option>
-                        <option value="Pastizales/Basura">Pastizales y/o Basura</option>
-                        <option value="Incendio instalaciones">Incendio instalaciones</option>
-                    </optgroup>
-                    <optgroup label="🚔 VEHICULAR">
-                        <option value="Choque livianos">Choque vehículos livianos</option>
-                        <option value="Colisión Pesados">Colisión vehículos pesados</option>
-                        <option value="Volcamiento">Volcamiento</option>
-                    </optgroup>
-                    <optgroup label="🩺 MEDICO">
-                        <option value="PCR">PCR</option>
-                        <option value="Fractura">Fractura</option>
-                        <option value="Desmayo">Desmayo / Inconsciente</option>
-                    </optgroup>
-                    <optgroup label="☢️ HAZMAT">
-                        <option value="Derrame">Derrame de sustancias</option>
-                        <option value="Fuga">Fuga de sustancias/gases</option>
-                    </optgroup>
-                    <optgroup label="⚙️ OTROS">
-                        <option value="Activacion SPCI">Activación alarma SPCI</option>
-                        <option value="Sismo">Sismo / Terremoto</option>
-                    </optgroup>
+                    <option value="Incendio Forestal">Incendio Forestal</option>
+                    <option value="Rescate Vehicular">Rescate Vehicular</option>
+                    <option value="Amago equipos mineros">Amago equipos mineros</option>
                 </select>
-                
-                <label>UBICACIÓN (Clic en mapa)</label>
-                <input type="text" id="em-direccion" placeholder="Coordenadas automáticas" readonly>
-
-                <label>NOTAS</label>
-                <textarea id="em-notas" rows="3" placeholder="Detalles adicionales..."></textarea>
-                
-                <button onclick="crearEmergencia()" class="btn-despacho">GENERAR DESPACHO</button>
+                <label>UBICACIÓN (Haz clic en mapa)</label>
+                <input type="text" id="em-direccion" readonly>
+                <button onclick="generarDespacho()" class="btn-despacho">GENERAR DESPACHO</button>
             </div>
         </div>
     </div>
