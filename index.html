@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CAD Emergencias - Sistema de Despacho</title>
+    <title>CAD Emergencias - Despacho</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="style.css">
 </head>
@@ -21,7 +21,6 @@
         <header>
             <div class="brand"><strong>CAD</strong> | MONITOREO Y DESPACHO</div>
             <div class="header-controls">
-                <button id="theme-toggle" onclick="toggleTheme()">Modo Claro</button>
                 <button class="btn-logout" onclick="logout()">Salir</button>
             </div>
         </header>
@@ -48,16 +47,11 @@
                 <div class="claves-grid" id="bases-container"></div>
                 <button onclick="mostrarClavesPrincipales()" class="btn-back">VOLVER</button>
             </div>
-            <div id="view-tramite" style="display:none;">
-                <input type="text" id="input-613" placeholder="Detalle del trámite...">
-                <button onclick="guardarTramite()" class="btn-clave" style="background:var(--accent); margin-top:10px; width:100%;">GUARDAR</button>
-                <button onclick="mostrarClavesPrincipales()" class="btn-back">VOLVER</button>
-            </div>
         </div>
     </div>
 
-    <div id="modal-emergencia" class="modal-overlay" style="display:none;">
-        <div class="modal-content" style="max-width:550px;">
+    <div id="modal-emergencia" class="modal-overlay transparent-bg" style="display:none;">
+        <div class="modal-content float-form">
             <div class="modal-header">
                 <h3>NUEVA EMERGENCIA</h3>
                 <button onclick="cerrarModalEmergencia()" class="btn-close">&times;</button>
@@ -67,156 +61,43 @@
                 <select id="em-tipo">
                     <optgroup label="🔥 INCENDIO">
                         <option value="Amago equipos mineros">Amago de incendio equipos mineros</option>
-                        <option value="Amago vehículos pesados">Amago de incendio en vehículos pesados</option>
-                        <option value="Amago vehículos livianos">Amago de incendio en vehículos livianos</option>
-                        <option value="Amago instalaciones industriales">Amago de incendio instalaciones industriales</option>
-                        <option value="Incendio equipos mineros">Incendio en equipos mineros</option>
-                        <option value="Incendio vehículos pesados">Incendio en vehículos pesado</option>
-                        <option value="Incendio vehículos livianos">Incendio en vehículos livianos</option>
-                        <option value="Incendio instalaciones">Incendio instalaciones</option>
-                        <option value="Incendio fuera instalaciones">Incendio fuera de las instalaciones</option>
                         <option value="Incendio Forestal">Incendio Forestal</option>
+                        <option value="Pastizales/Basura">Pastizales y/o Basura</option>
                         <option value="Pastizales/Basura">Pastizales y/o Basura</option>
                     </optgroup>
                     <optgroup label="🚔 VEHICULAR">
-                        <option value="Choque equipos mineros">Choque equipos mineros</option>
-                        <option value="Choque vehículos pesados">Choque vehículos pesados</option>
-                        <option value="Choque vehículos livianos">Choque vehículos livianos</option>
-                        <option value="Choque v. pesados fuera">Choque vehículos pesados fuera de las instalaciones</option>
-                        <option value="Choque v. livianos fuera">Choque vehículos livianos fuera de las instalaciones</option>
-                        <option value="Desbarrancamiento eq. mineros">Desbarrancamiento equipos mineros</option>
-                        <option value="Desbarrancamiento v. pesados">Desbarrancamiento vehículos pesados</option>
-                        <option value="Desbarrancamiento v. livianos">Desbarrancamiento vehículos livianos</option>
-                        <option value="Desbarrancamiento v. pesados fuera">Desbarrancamiento v. pesados fuera de faena</option>
-                        <option value="Desbarrancamiento v. livianos fuera">Desbarrancamiento v. livianos fuera de faena</option>
-                        <option value="Colisión equipo minero">Colisión equipo minero</option>
-                        <option value="Colisión vehículos pesados">Colisión vehículos pesados</option>
-                        <option value="Colisión vehículos livianos">Colisión vehículos livianos</option>
-                        <option value="Colisión v. pesados fuera">Colisión vehículos pesados fuera de faena</option>
-                        <option value="Colisión v. livianos fuera">Colisión vehículos livianos fuera de faena</option>
-                        <option value="Volcamiento equipo minero">Volcamiento equipo minero</option>
-                        <option value="Volcamiento vehículos pesados">Volcamiento vehículos pesados</option>
-                        <option value="Volcamiento vehículos livianos">Volcamiento vehículos livianos</option>
-                        <option value="Volcamiento v. pesados fuera">Volcamiento v. pesados fuera de faena</option>
-                        <option value="Volcamiento v. livianos fuera">Volcamiento v. livianos fuera de faena</option>
-                        <option value="Deslizamiento eq. mineros">Deslizamiento de equipos mineros</option>
+                        <option value="Choque livianos">Choque vehículos livianos</option>
+                        <option value="Colisión Pesados">Colisión vehículos pesados</option>
+                        <option value="Volcamiento">Volcamiento</option>
                     </optgroup>
                     <optgroup label="🪜 RESCATE">
-                        <option value="Caída mismo nivel">Caída mismo nivel</option>
-                        <option value="Caída diferente nivel">Caída diferente nivel</option>
-                        <option value="Derrumbe">Derrumbe</option>
+                        <option value="Caída nivel">Caída mismo nivel</option>
                         <option value="Atrapamiento">Atrapamiento</option>
-                        <option value="Perdida conciencia">Perdida de conciencia</option>
-                        <option value="Encerramiento ascensor">Encerramiento en ascensor</option>
-                        <option value="Rescate vertical">Rescate vertical</option>
-                        <option value="Rescate espacio confinado">Rescate espacio confinados</option>
-                        <option value="Atropello">Atropello</option>
-                        <option value="Caída particular">Caída de particular</option>
-                        <option value="Otros rescate">Otros no categorizados</option>
                     </optgroup>
                     <optgroup label="🩺 MEDICO">
-                        <option value="Problemas salud">Problemas de salud (Cefalea, estomago, pecho)</option>
-                        <option value="Fractura">Fractura (Abierta, cerrada)</option>
-                        <option value="Esguince">Esguince (Extremidad Superior o inferior)</option>
-                        <option value="Desmayo/Inconciente">Desmayo / Inconciente</option>
-                        <option value="Crisis Panico/Ansiedad">Crisis de Panico / Ansiedad</option>
-                        <option value="Golpeado por">Golpeado por</option>
                         <option value="PCR">PCR</option>
-                        <option value="Corte">Corte (brazo, mano, pierna, etc)</option>
-                        <option value="Perdida memoria">Perdida de memoria</option>
-                        <option value="Otros medico">Otros no categorizados</option>
+                        <option value="Fractura">Fractura</option>
+                        <option value="Desmayo">Desmayo / Inconsciente</option>
                     </optgroup>
                     <optgroup label="☢️ HAZMAT">
-                        <option value="Derrame Sust. Peligrosas">Derrame de sustancias peligrosas</option>
-                        <option value="Fuga Sust. Peligrosas">Fuga de sustancias peligrosas</option>
-                        <option value="Incidente Hazmat Varios">Incidente con sustancias peligrosas varias</option>
-                    </optgroup>
-                    <optgroup label="📅 SIMULACROS">
-                        <option value="Simulacro Divisional">Simulacros (Documental / Proceso / Divisional)</option>
-                        <option value="Simulacro Incendio">Incendio</option>
-                        <option value="Simulacro Vehicular">Vehicular</option>
-                        <option value="Simulacro Rescate">Rescate</option>
-                        <option value="Simulacro Hazmat">Hazmat</option>
-                        <option value="Simulacro Sismico">Sísmico</option>
-                        <option value="Simulacro Meteorologico">Meteorológico</option>
-                        <option value="Simulacro Geologico">Geológico</option>
-                        <option value="Simulacro Ambiental">Ambiental</option>
-                        <option value="Simulacro Medico">Médico</option>
-                    </optgroup>
-                    <optgroup label="🫨 SÍSMICO">
-                        <option value="Sismo Leve">Sismo Leve en Faena</option>
-                        <option value="Sismo Moderado">Sismo Moderado con evacuación preventiva</option>
-                        <option value="Terremoto Grave">Terremoto grave que causa daños estructurales</option>
-                    </optgroup>
-                    <optgroup label="⛈️ METEOROLOGICO">
-                        <option value="Tormenta Electrica">Tormenta Eléctrica en Zona Alta</option>
-                        <option value="Nevadas Intensas">Nevadas intensas que bloquean accesos</option>
-                        <option value="Lluvias Torrenciales">Lluvias torrencial que afecta estabilidad de caminos</option>
-                        <option value="Ola de Calor">Ola de Calor que acelera derretimiento de nieve</option>
-                        <option value="Viento Blanco">Viento blanco o venstiscas en zona alta</option>
-                        <option value="Aluvion">Aluvión por deshielo o lluvias intensas</option>
-                        <option value="Crecida rios">Crecida de rios por lluvias intensas</option>
-                        <option value="Inundacion">Inundación de instalaciones</option>
-                    </optgroup>
-                    <optgroup label="🏔️ GEOLÓGICO">
-                        <option value="Deslizamiento terreno">Deslizamiento de terreno</option>
-                        <option value="Remocion en masa">Remoción en masa</option>
-                        <option value="Falla Geotecnica">Falla Geotécnica en botaderos o relaves</option>
-                        <option value="Caida rocas">Caída de rocas en zonas de transito</option>
-                        <option value="Inestabilidad taludes">Inestabilidad de taludes</option>
-                    </optgroup>
-                    <optgroup label="🌱 AMBIENTAL">
-                        <option value="Material particulado">Aumento de material particulado por vientos</option>
-                        <option value="Contaminacion agua">Contaminación a cursos de agua</option>
-                        <option value="Afectacion flora/fauna">Afectación a flora / fauna</option>
+                        <option value="Derrame">Derrame de sustancias</option>
+                        <option value="Fuga">Fuga de gases</option>
                     </optgroup>
                     <optgroup label="⚙️ OTROS">
-                        <option value="Limpieza rodados OLB">Limpieza de rodados / arboleda rutas OLB</option>
                         <option value="Activacion SPCI">Activación de alarma SPCI</option>
-                        <option value="Contacto electrico">Contacto electrico</option>
-                        <option value="Desperfecto G-21/G-245">Desperfecto mecancio, rutas G-21, G-245</option>
-                        <option value="Desperfecto STP-OLB">Desperfecto mecánico, ruta STP- OLB</option>
                         <option value="Rescate animal">Rescate animal</option>
-                        <option value="Olor no determinado">Olor no determinado</option>
-                        <option value="Daño infraestrucura">Daño a infraestructura cítica</option>
-                        <option value="Caida arbol">Caída de árbol</option>
-                        <option value="Corte suministro">Interrupción de suministro eléctrico</option>
-                        <option value="Otras no categorizadas">Otras no categorizadas</option>
                     </optgroup>
                 </select>
                 
-                <label>UBICACIÓN (Escribe o haz clic en mapa)</label>
+                <label>UBICACIÓN (Haz clic en mapa o busca)</label>
                 <div style="display:flex; gap:5px;">
-                    <input type="text" id="em-direccion" placeholder="Calle, ciudad o coordenadas">
+                    <input type="text" id="em-direccion" placeholder="Calle o Coordenadas">
                     <button onclick="buscarDireccion()" type="button" class="btn-search">🔍</button>
                 </div>
 
                 <label>NOTAS</label>
                 <textarea id="em-notas" rows="2"></textarea>
                 <button onclick="crearEmergencia()" class="btn-despacho">GENERAR DESPACHO</button>
-            </div>
-        </div>
-    </div>
-
-    <div id="modal-gestion" class="modal-overlay" style="display:none;">
-        <div class="modal-content" style="max-width:800px; border-top: 5px solid var(--rojo);">
-            <div class="modal-header">
-                <h3 id="gest-titulo">EMERGENCIA</h3>
-                <button onclick="cerrarGestion()" class="btn-close">&times;</button>
-            </div>
-            <div class="gestion-container">
-                <div class="gest-info">
-                    <p><strong>INICIO:</strong> <span id="gest-hora">00:00</span></p>
-                    <p><strong>TIEMPO:</strong> <span id="gest-cronometro" style="color:var(--rojo); font-weight:bold;">00:00:00</span></p>
-                    <p><strong>LUGAR:</strong> <span id="gest-lugar">---</span></p>
-                </div>
-                <div class="gest-unidades">
-                    <h4>SUGERENCIAS</h4>
-                    <div id="sugerencias-lista"></div>
-                    <hr>
-                    <h4>UNIDADES EN DESPACHO</h4>
-                    <div id="asignadas-lista"></div>
-                </div>
             </div>
         </div>
     </div>
