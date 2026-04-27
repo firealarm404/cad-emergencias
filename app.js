@@ -19,7 +19,6 @@ let map, markers = {};
 let unidadSeleccionada = null;
 let basesCache = {}; 
 
-// 1. CARGAMOS TODAS LAS BASES EN MEMORIA
 async function cargarBases() {
     const snap = await getDocs(collection(db, "bases"));
     snap.forEach(d => {
@@ -33,7 +32,6 @@ function initMap() {
     L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png').addTo(map);
 }
 
-// 2. MODAL DE CLAVES
 window.abrirMenuClaves = (id) => {
     unidadSeleccionada = id;
     mostrarClavesPrincipales();
@@ -48,9 +46,10 @@ window.mostrarClavesPrincipales = () => {
     container.innerHTML = '';
     
     const listaClaves = [
-        { cod: "6-3", desc: "En el lugar" }, { cod: "6-8", desc: "Disponible (Base Origen)" },
-        { cod: "6-10", desc: "En Base (Cobertura)" }, { cod: "6-11", desc: "En panne" },
-        { cod: "6-14", desc: "Carga Combustible" }, { cod: "6-15", desc: "Centro Asistencial" }
+        { cod: "6-3", desc: "En el lugar" }, 
+        { cod: "6-8", desc: "Disponible (Base Origen)" },
+        { cod: "6-10", desc: "En Base (Cobertura)" }, 
+        { cod: "6-11", desc: "En panne" }
     ];
 
     listaClaves.forEach(c => {
@@ -79,13 +78,10 @@ function mostrarSeleccionBase() {
 async function actualizarEstado(val) {
     try {
         await updateDoc(doc(db, "material_mayor", unidadSeleccionada), { estado: val });
-        window.cerrarModal();
-    } catch (e) { console.error(e); }
+        document.getElementById('modal-claves').style.display = 'none';
+    } catch (e) { console.error("Error al actualizar:", e); }
 }
 
-window.cerrarModal = () => document.getElementById('modal-claves').style.display = 'none';
-
-// 3. ESCUCHA DE CAMBIOS (SIN GPS)
 function escucharVehiculos() {
     onSnapshot(collection(db, "material_mayor"), (snap) => {
         const lista = document.getElementById('lista-vehiculos');
@@ -95,10 +91,9 @@ function escucharVehiculos() {
             const id = d.id;
             const est = v.estado || "6-8";
             
-            // LÓGICA DE UBICACIÓN PREDETERMINADA
             let lat, lng;
 
-            // Caso A: Si es 6-10 (Cobertura en alguna base)
+            // Si está en cobertura (6-10), usamos la coordenada de la base seleccionada
             if (est.includes('6-10')) {
                 const match = est.match(/\(([^)]+)\)/);
                 const idBase = match ? match[1] : null;
@@ -108,7 +103,7 @@ function escucharVehiculos() {
                 }
             } 
             
-            // Caso B: Si no hay base de cobertura, usa su base original (del documento material_mayor)
+            // Si no es cobertura o no se encuentra la base, usa su base original
             if (!lat || !lng) {
                 lat = v.ubicacion.latitude;
                 lng = v.ubicacion.longitude;
@@ -123,9 +118,8 @@ function escucharVehiculos() {
                 markers[id] = L.marker([lat, lng], {icon}).addTo(map);
             }
 
-            const claseEstado = `estado-${est.split(' ')[0].replace('-','')}`;
             lista.innerHTML += `
-                <div class="vehiculo-card ${claseEstado}" onclick="abrirMenuClaves('${id}')">
+                <div class="vehiculo-card" onclick="abrirMenuClaves('${id}')">
                     <div><strong>${id}</strong><br><small>${v.tipo || 'Unidad'}</small></div>
                     <div style="text-align:right"><strong>${est}</strong></div>
                 </div>`;
@@ -133,7 +127,6 @@ function escucharVehiculos() {
     });
 }
 
-// Inicialización de Auth y App
 onAuthStateChanged(auth, async (u) => {
     if (u) {
         document.getElementById('login-screen').style.display = 'none';
@@ -143,13 +136,3 @@ onAuthStateChanged(auth, async (u) => {
         escucharVehiculos();
     }
 });
-
-window.login = () => {
-    const e = document.getElementById('email').value;
-    const p = document.getElementById('password').value;
-    signInWithEmailAndPassword(auth, e, p);
-};
-window.logout = () => signOut(auth);
-window.toggleTheme = () => {
-    document.body.classList.toggle('light-mode');
-};
