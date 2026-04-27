@@ -15,114 +15,184 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-let map, markers = {}, vehiculosData = [];
-let puntoEmergencia = null, cronoInterval = null, segundos = 0;
+let map, markers = {};
 let unidadSeleccionada = null;
+let basesCache = {}; 
 
-// --- FUNCIONES GLOBALIZADAS PARA BOTONES ---
-window.login = () => {
-    signInWithEmailAndPassword(auth, document.getElementById('email').value, document.getElementById('password').value);
-};
-window.logout = () => signOut(auth);
+const listaClaves = [
+    { cod: "6-3", desc: "En el lugar" }, 
+    { cod: "6-7", desc: "Situación controlada" },
+    { cod: "6-8", desc: "Disponible" }, // Solo cambia el color/estado, no mueve el marcador
+    { cod: "6-9", desc: "Se retira del lugar" }, 
+    { cod: "6-10", desc: "En Base (Origen/Cobertura)" }, // Esta es la que mueve
+    { cod: "6-11", desc: "En panne" }, 
+    { cod: "6-12", desc: "Sufre colisión" },
+    { cod: "6-13", desc: "Otros Trámites" }, 
+    { cod: "6-14", desc: "Carga Combustible" },
+    { cod: "6-15", desc: "Centro Asistencial" }, 
+    { cod: "6-18", desc: "Entra a túnel" },
+    { cod: "6-19", desc: "Sale del túnel" }
+];
 
-// CLAVES DE MATERIAL MAYOR
+async function cargarBases() {
+    const snap = await getDocs(collection(db, "bases"));
+    snap.forEach(d => { basesCache[d.id] = d.data(); });
+}
+
+function initMap() {
+    if (map) return;
+    const vistaActual = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { attribution: '© CARTO' });
+    const satelital = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: '© Esri' });
+    const calles = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OSM' });
+
+    map = L.map('map', { center: [-33.19, -70.45], zoom: 11, layers: [vistaActual] });
+    const baseMaps = { "Vista Actual": vistaActual, "Vista Satelital": satelital, "Mapa de Calles": calles };
+    L.control.layers(baseMaps).addTo(map);
+}
+
+window.cerrarModal = () => { document.getElementById('modal-claves').style.display = 'none'; };
+
 window.abrirMenuClaves = (id) => {
     unidadSeleccionada = id;
-    document.getElementById('titulo-unidad').innerText = `UNIDAD ${id}`;
-    const grid = document.getElementById('grid-claves');
-    const claves = ["6-0", "6-3", "6-7", "6-8", "6-9", "6-10", "6-13", "6-14"];
-    grid.innerHTML = claves.map(c => `<button class="btn-clave" onclick="cambiarEstado('${c}')">${c}</button>`).join('');
+    mostrarClavesPrincipales();
+    document.getElementById('modal-titulo').innerText = `Unidad: ${id}`;
     document.getElementById('modal-claves').style.display = 'flex';
 };
 
-window.cerrarModalClaves = () => document.getElementById('modal-claves').style.display = 'none';
-
-window.cambiarEstado = async (estado) => {
-    await updateDoc(doc(db, "material_mayor", unidadSeleccionada), { estado: estado });
-    cerrarModalClaves();
+window.mostrarClavesPrincipales = () => {
+    document.getElementById('view-claves').style.display = 'grid';
+    document.getElementById('view-bases').style.display = 'none';
+    document.getElementById('view-tramite').style.display = 'none';
+    const container = document.getElementById('view-claves');
+    container.innerHTML = '';
+    
+    listaClaves.forEach(c => {
+        const btn = document.createElement('button');
+        btn.className = 'btn-clave';
+        btn.innerHTML = `<strong>${c.cod}</strong> ${c.desc}`;
+        btn.onclick = () => {
+            if (c.cod === "6-10") mostrarSeleccionBase();
+            else if (c.cod === "6-13") mostrarInputTramite();
+            else actualizarEstado(c.cod);
+        };
+        container.appendChild(btn);
+    });
 };
 
-// EMERGENCIA Y DESPACHO
-window.abrirModalEmergencia = () => document.getElementById('modal-emergencia').style.display = 'flex';
-window.cerrarModalEmergencia = () => document.getElementById('modal-emergencia').style.display = 'none';
+function mostrarSeleccionBase() {
+    document.getElementById('view-claves').style.display = 'none';
+    document.getElementById('view-bases').style.display = 'block';
+    const container = document.getElementById('bases-container');
+    container.innerHTML = '';
+    
+    // Opción para volver a Base Original
+    const btnOrig = document.createElement('button');
+    btnOrig.className = 'btn-clave';
+    btnOrig.style.borderColor = "#ff4500";
+    btnOrig.innerText = "VOLVER A BASE ORIGINAL";
+    btnOrig.onclick = () => actualizarEstado("6-10");
+    container.appendChild(btnOrig);
 
-window.generarDespacho = () => {
-    if(!puntoEmergencia) return alert("Selecciona punto en el mapa");
-    document.getElementById('modal-emergencia').style.display = 'none';
-    document.getElementById('modal-despacho-activo').style.display = 'flex';
-    document.getElementById('despacho-titulo-tipo').innerText = document.getElementById('em-tipo').value;
-    iniciarCronometro();
-    calcularCercania();
-};
-
-function iniciarCronometro() {
-    segundos = 0;
-    clearInterval(cronoInterval);
-    cronoInterval = setInterval(() => {
-        segundos++;
-        let min = Math.floor(segundos/60).toString().padStart(2,'0');
-        let seg = (segundos%60).toString().padStart(2,'0');
-        document.getElementById('cronometro-emergencia').innerText = `${min}:${seg}`;
-    }, 1000);
-}
-
-window.finalizarEmergencia = () => {
-    clearInterval(cronoInterval);
-    document.getElementById('modal-despacho-activo').style.display = 'none';
-};
-
-function calcularCercania() {
-    const lista = document.getElementById('unidades-cercanas');
-    // Filtramos unidades disponibles y calculamos distancia simple (Euclidiana)
-    const sugeridos = vehiculosData
-        .map(v => {
-            const d = Math.sqrt(Math.pow(v.lat - puntoEmergencia.lat, 2) + Math.pow(v.lng - puntoEmergencia.lng, 2));
-            return { ...v, dist: d };
-        })
-        .sort((a,b) => a.dist - b.dist);
-
-    lista.innerHTML = sugeridos.map(v => `
-        <div class="sugerido-card">
-            <span>${v.id} (${v.estado})</span>
-            <button onclick="despacharUnidad('${v.id}')">DESPACHAR</button>
-        </div>
-    `).join('');
-}
-
-window.despacharUnidad = (id) => {
-    document.getElementById('unidades-asignadas').innerHTML += `<div class="asignada-tag">${id} EN RUTA</div>`;
-};
-
-// --- MAPA Y FIREBASE ---
-function initMap() {
-    map = L.map('map').setView([-33.19, -70.45], 11);
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png').addTo(map);
-
-    map.on('click', (e) => {
-        if(document.getElementById('modal-emergencia').style.display === 'flex') {
-            puntoEmergencia = e.latlng;
-            document.getElementById('em-direccion').value = `${e.latlng.lat.toFixed(4)},${e.latlng.lng.toFixed(4)}`;
-        }
+    Object.keys(basesCache).forEach(idBase => {
+        const btn = document.createElement('button');
+        btn.className = 'btn-clave';
+        btn.innerText = basesCache[idBase].nombre;
+        btn.onclick = () => actualizarEstado(`6-10 (${idBase})`);
+        container.appendChild(btn);
     });
 }
 
-onAuthStateChanged(auth, (u) => {
-    if(u) {
+function mostrarInputTramite() {
+    document.getElementById('view-claves').style.display = 'none';
+    document.getElementById('view-tramite').style.display = 'block';
+    document.getElementById('input-613').value = '';
+}
+
+window.guardarTramite = () => {
+    const desc = document.getElementById('input-613').value;
+    if (desc) actualizarEstado(`6-13 (${desc})`);
+};
+
+async function actualizarEstado(val) {
+    try {
+        await updateDoc(doc(db, "material_mayor", unidadSeleccionada), { estado: val });
+        window.cerrarModal();
+    } catch (e) { console.error(e); }
+}
+
+function escucharVehiculos() {
+    onSnapshot(collection(db, "material_mayor"), (snap) => {
+        const lista = document.getElementById('lista-vehiculos');
+        lista.innerHTML = '';
+        const conteoPosiciones = {};
+
+        snap.forEach(d => {
+            const v = d.data();
+            const id = d.id;
+            const est = v.estado || "6-10";
+            
+            let lat, lng;
+
+            // LÓGICA DE MOVIMIENTO: Solo si es 6-10 se recalcula la base
+            if (est.includes('6-10')) {
+                const match = est.match(/\(([^)]+)\)/);
+                const idBase = match ? match[1] : null;
+                
+                if (idBase && basesCache[idBase]) {
+                    // Mover a base de cobertura
+                    lat = basesCache[idBase].ubicacion.latitude;
+                    lng = basesCache[idBase].ubicacion.longitude;
+                } else {
+                    // Es 6-10 a secas: Mover a base original
+                    lat = v.ubicacion.latitude;
+                    lng = v.ubicacion.longitude;
+                }
+            } else {
+                // Si NO es 6-10 (ej: es 6-8), mantiene la posición actual que tenga en Firebase
+                // o la última base conocida si no tiene GPS activo.
+                lat = v.ubicacion.latitude;
+                lng = v.ubicacion.longitude;
+            }
+
+            const posKey = `${lat.toFixed(6)},${lng.toFixed(6)}`;
+            if (!conteoPosiciones[posKey]) conteoPosiciones[posKey] = 0;
+            const offset = conteoPosiciones[posKey] * 0.00018; 
+            const finalLat = lat + offset;
+            const finalLng = lng + offset;
+            conteoPosiciones[posKey]++;
+
+            const iconCls = `custom-marker ${est === '6-3' ? 'marker-rojo' : (est.includes('6-10') ? 'marker-azul' : (est === '6-8' ? 'marker-verde' : ''))}`;
+            const icon = L.divIcon({ className: iconCls, html: `<span>${id}</span>`, iconSize:[45,22] });
+            
+            if (markers[id]) markers[id].setLatLng([finalLat, finalLng]).setIcon(icon);
+            else markers[id] = L.marker([finalLat, finalLng], {icon}).addTo(map);
+
+            const claseEstado = `estado-${est.split(' ')[0].replace('-','')}`;
+            lista.innerHTML += `
+                <div class="vehiculo-card ${claseEstado}" onclick="abrirMenuClaves('${id}')">
+                    <div><strong>${id}</strong><br><small>${v.tipo || 'Unidad'}</small></div>
+                    <div style="text-align:right; font-size:11px;"><strong>${est}</strong></div>
+                </div>`;
+        });
+    });
+}
+
+onAuthStateChanged(auth, async (u) => {
+    if (u) {
         document.getElementById('login-screen').style.display = 'none';
         document.getElementById('main-app').style.display = 'block';
+        await cargarBases();
         initMap();
-        onSnapshot(collection(db, "material_mayor"), (snap) => {
-            const listUI = document.getElementById('lista-vehiculos');
-            listUI.innerHTML = '';
-            vehiculosData = [];
-            snap.forEach(d => {
-                const v = d.data();
-                vehiculosData.push({id: d.id, lat: v.ubicacion.latitude, lng: v.ubicacion.longitude, estado: v.estado});
-                listUI.innerHTML += `<div class="vehiculo-card" onclick="abrirMenuClaves('${d.id}')"><strong>${d.id}</strong> - ${v.estado}</div>`;
-                // Actualizar Marcador
-                if(markers[d.id]) markers[d.id].setLatLng([v.ubicacion.latitude, v.ubicacion.longitude]);
-                else markers[d.id] = L.marker([v.ubicacion.latitude, v.ubicacion.longitude]).addTo(map).bindPopup(d.id);
-            });
-        });
+        escucharVehiculos();
     }
 });
+
+window.login = () => {
+    const e = document.getElementById('email').value;
+    const p = document.getElementById('password').value;
+    signInWithEmailAndPassword(auth, e, p).catch(() => alert("Acceso Denegado"));
+};
+window.logout = () => signOut(auth);
+window.toggleTheme = () => document.body.classList.toggle('light-mode');
+window.mostrarClavesPrincipales = mostrarClavesPrincipales;
+window.mostrarInputTramite = mostrarInputTramite;
