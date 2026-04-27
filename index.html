@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CAD Emergencias - Despacho Proactivo</title>
+    <title>CAD Emergencias - Sistema de Despacho</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="style.css">
 </head>
@@ -25,6 +25,7 @@
                 <button class="btn-logout" onclick="logout()">Salir</button>
             </div>
         </header>
+
         <div class="container">
             <aside id="sidebar">
                 <div class="section-title">MATERIAL MAYOR</div>
@@ -57,35 +58,43 @@
 
     <div id="modal-emergencia" class="modal-overlay" style="display:none;">
         <div class="modal-content" style="max-width:500px;">
-            <div class="modal-header"><h3>NUEVA EMERGENCIA</h3><button onclick="cerrarModalEmergencia()" class="btn-close">&times;</button></div>
+            <div class="modal-header">
+                <h3>NUEVA EMERGENCIA</h3>
+                <button onclick="cerrarModalEmergencia()" class="btn-close">&times;</button>
+            </div>
             <div class="form-emergencia">
-                <label>TIPO</label>
+                <label>TIPO DE EMERGENCIA</label>
                 <select id="em-tipo">
                     <option value="10-0 Incendio">10-0 Incendio</option>
-                    <option value="10-4 Rescate">10-4 Rescate</option>
-                    <option value="10-3 Medico">10-3 Medico</option>
+                    <option value="10-4 Accidente Vehicular">10-4 Accidente Vehicular</option>
+                    <option value="10-3 Emergencia Médica">10-3 Emergencia Médica</option>
+                    <option value="10-6 Rescate">10-6 Rescate</option>
                 </select>
-                <label>UBICACIÓN (Clic en mapa o escriba)</label>
-                <input type="text" id="em-direccion" placeholder="Dirección o Coordenadas">
-                <label>NOTAS ADICIONALES</label>
-                <textarea id="em-notas" placeholder="Numeración, teléfono, etc."></textarea>
-                <button onclick="crearEmergencia()" class="btn-despacho">CREAR Y SUGERIR UNIDADES</button>
+                <label>UBICACIÓN (Clic en mapa o coordenadas)</label>
+                <input type="text" id="em-direccion" placeholder="Ej: -33.123, -70.456">
+                <label>NOTAS ADICIONALES (Teléfono, numeración, etc)</label>
+                <textarea id="em-notas" rows="3" placeholder="Detalles de quien llama..."></textarea>
+                <button onclick="crearEmergencia()" class="btn-despacho">GENERAR DESPACHO</button>
             </div>
         </div>
     </div>
 
     <div id="modal-gestion" class="modal-overlay" style="display:none;">
-        <div class="modal-content" style="max-width:800px;">
-            <div class="modal-header"><h3 id="gest-titulo">EMERGENCIA</h3><button onclick="cerrarGestion()" class="btn-close">&times;</button></div>
+        <div class="modal-content" style="max-width:800px; border-top: 5px solid var(--rojo);">
+            <div class="modal-header">
+                <h3 id="gest-titulo">EMERGENCIA</h3>
+                <button onclick="cerrarGestion()" class="btn-close">&times;</button>
+            </div>
             <div class="gestion-container">
                 <div class="gest-info">
-                    <p><strong>INICIO:</strong> <span id="gest-hora"></span></p>
-                    <p><strong>TIEMPO:</strong> <span id="gest-cronometro">00:00</span></p>
-                    <p><strong>LUGAR:</strong> <span id="gest-lugar"></span></p>
+                    <p><strong>INICIO:</strong> <span id="gest-hora">00:00</span></p>
+                    <p><strong>TIEMPO:</strong> <span id="gest-cronometro" style="color:var(--rojo); font-weight:bold;">00:00:00</span></p>
+                    <p><strong>LUGAR:</strong> <span id="gest-lugar">---</span></p>
                 </div>
                 <div class="gest-unidades">
-                    <h4>SUGERIDAS POR CERCANÍA</h4>
+                    <h4>SUGERENCIAS (CERCANÍA)</h4>
                     <div id="sugerencias-lista"></div>
+                    <hr>
                     <h4>UNIDADES EN DESPACHO</h4>
                     <div id="asignadas-lista"></div>
                 </div>
