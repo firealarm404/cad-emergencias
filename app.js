@@ -131,7 +131,7 @@ function mostrarSeleccionBase() {
     const btnOrig = document.createElement('button');
     btnOrig.className = 'btn-clave'; btnOrig.style.gridColumn = "span 2";
     btnOrig.style.background = "#333"; btnOrig.style.border = "2px solid #3498db";
-    btnOrig.innerHTML = `<strong>REESTABLECER BASE ORIGINAL</strong>`;
+    btnOrig.innerHTML = `<strong>BASE ORIGINAL</strong>`;
     btnOrig.onclick = () => window.actualizarEstado("6-10");
     cont.appendChild(btnOrig);
     
