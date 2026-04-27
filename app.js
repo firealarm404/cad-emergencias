@@ -18,14 +18,13 @@ const db = getFirestore(app);
 let map, markers = {}, basesCache = {};
 let unidadSeleccionada = null, puntoEmergencia = null, cronometro = null;
 
-// 1. LISTA COMPLETA DE CLAVES RESTAURADA
 const listaClaves = [
     { cod: "6-3", desc: "En el lugar" }, { cod: "6-7", desc: "Situación controlada" },
-    { cod: "6-8", desc: "Disponible" }, { cod: "6-9", desc: "Se retira del lugar" },
-    { cod: "6-10", desc: "En Base (Origen/Cobertura)" }, { cod: "6-11", desc: "En panne" },
+    { cod: "6-8", desc: "Disponible" }, { cod: "6-9", desc: "Se retira" },
+    { cod: "6-10", desc: "En Base / Cobertura" }, { cod: "6-11", desc: "En panne" },
     { cod: "6-12", desc: "Sufre colisión" }, { cod: "6-13", desc: "Otros Trámites" },
-    { cod: "6-14", desc: "Carga Combustible" }, { cod: "6-15", desc: "Centro Asistencial" },
-    { cod: "6-18", desc: "Entra a túnel" }, { cod: "6-19", desc: "Sale del túnel" }
+    { cod: "6-14", desc: "Combustible" }, { cod: "6-15", desc: "Asistencial" },
+    { cod: "6-18", desc: "Entra Túnel" }, { cod: "6-19", desc: "Sale Túnel" }
 ];
 
 async function cargarBases() {
@@ -37,10 +36,8 @@ function initMap() {
     if (map) return;
     const actual = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png');
     const sat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}');
-    const calles = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png');
-
     map = L.map('map', { center: [-33.19, -70.45], zoom: 11, layers: [actual] });
-    L.control.layers({"Vista Actual": actual, "Satelital": sat, "Calles": calles}).addTo(map);
+    L.control.layers({"Mapa": actual, "Satélite": sat}).addTo(map);
 
     map.on('click', (e) => {
         if (document.getElementById('modal-emergencia').style.display === 'flex') {
@@ -50,7 +47,6 @@ function initMap() {
     });
 }
 
-// LÓGICA DE VEHÍCULOS (CORREGIDA)
 function escucharVehiculos() {
     onSnapshot(collection(db, "material_mayor"), (snap) => {
         const lista = document.getElementById('lista-vehiculos');
@@ -58,58 +54,46 @@ function escucharVehiculos() {
         const conteoPosiciones = {};
 
         snap.forEach(d => {
-            const v = d.data();
-            const id = d.id;
-            const est = v.estado || "6-10";
-            
+            const v = d.data(), id = d.id, est = v.estado || "6-10";
             let lat, lng;
 
-            // Determinar posición
-            if (est.includes('6-10')) {
+            if (est.startsWith('6-10')) {
                 const match = est.match(/\(([^)]+)\)/);
                 const idBase = match ? match[1] : null;
                 if (idBase && basesCache[idBase]) {
                     lat = basesCache[idBase].ubicacion.latitude;
                     lng = basesCache[idBase].ubicacion.longitude;
                 } else {
-                    lat = v.ubicacion.latitude;
-                    lng = v.ubicacion.longitude;
+                    lat = v.ubicacion.latitude; lng = v.ubicacion.longitude;
                 }
             } else {
-                lat = v.ubicacion.latitude;
-                lng = v.ubicacion.longitude;
+                lat = v.ubicacion.latitude; lng = v.ubicacion.longitude;
             }
 
-            // Evitar solapamiento
             const posKey = `${lat.toFixed(6)},${lng.toFixed(6)}`;
-            if (!conteoPosiciones[posKey]) conteoPosiciones[posKey] = 0;
-            const offset = conteoPosiciones[posKey] * 0.00018; 
-            const finalLat = lat + offset;
-            const finalLng = lng + offset;
-            conteoPosiciones[posKey]++;
+            conteoPosiciones[posKey] = (conteoPosiciones[posKey] || 0) + 1;
+            const finalLat = lat + (conteoPosiciones[posKey] - 1) * 0.00018;
 
-            // Marcador en Mapa
-            const colorCls = est.includes('6-3') ? 'marker-rojo' : (est.includes('6-10') ? 'marker-azul' : (est === '6-8' ? 'marker-verde' : ''));
-            const icon = L.divIcon({ className: `custom-marker ${colorCls}`, html: `<span>${id}</span>`, iconSize:[45,22] });
-            
-            if (markers[id]) {
-                markers[id].setLatLng([finalLat, finalLng]).setIcon(icon);
-            } else {
-                markers[id] = L.marker([finalLat, finalLng], {icon}).addTo(map);
-            }
+            let colorCls = '';
+            if (est.startsWith('6-3')) colorCls = 'marker-rojo';
+            else if (est.startsWith('6-8')) colorCls = 'marker-verde';
+            else if (est.startsWith('6-10')) colorCls = 'marker-azul';
 
-            // Card en Sidebar
-            const claseEstado = `estado-${est.split(' ')[0].replace('-','')}`;
+            const icon = L.divIcon({ className: `custom-marker ${colorCls}`, html: `<span>${id}</span>`, iconSize: [45, 22] });
+            if (markers[id]) markers[id].setLatLng([finalLat, lng]).setIcon(icon);
+            else markers[id] = L.marker([finalLat, lng], {icon}).addTo(map);
+
+            const claseCss = `estado-${est.substring(0,4).replace('-', '').trim()}`;
             lista.innerHTML += `
-                <div class="vehiculo-card ${claseEstado}" onclick="abrirMenuClaves('${id}')">
-                    <strong>${id}</strong>
-                    <span style="font-size:10px;">${est}</span>
+                <div class="vehiculo-card ${claseCss}" onclick="abrirMenuClaves('${id}')">
+                    <div><strong>${id}</strong><br><small>${v.tipo || ''}</small></div>
+                    <div style="text-align:right;"><strong>${est}</strong></div>
                 </div>`;
         });
     });
 }
 
-// MODAL DE CLAVES
+// GESTIÓN DE CLAVES Y BASES
 window.abrirMenuClaves = (id) => {
     unidadSeleccionada = id;
     document.getElementById('modal-titulo').innerText = `Unidad: ${id}`;
@@ -123,7 +107,6 @@ window.mostrarClavesPrincipales = () => {
     document.getElementById('view-tramite').style.display = 'none';
     const container = document.getElementById('view-claves');
     container.innerHTML = '';
-    
     listaClaves.forEach(c => {
         const btn = document.createElement('button');
         btn.className = 'btn-clave';
@@ -141,12 +124,18 @@ function mostrarSeleccionBase() {
     document.getElementById('view-claves').style.display = 'none';
     document.getElementById('view-bases').style.display = 'block';
     const cont = document.getElementById('bases-container');
-    cont.innerHTML = '<button class="btn-clave" style="grid-column: span 2; border-color:orange;" onclick="actualizarEstado(\'6-10\')">BASE ORIGINAL</button>';
+    cont.innerHTML = '';
+
+    const btnOrig = document.createElement('button');
+    btnOrig.className = 'btn-clave'; btnOrig.style.gridColumn = "span 2";
+    btnOrig.style.background = "#333"; btnOrig.style.border = "2px solid var(--azul)";
+    btnOrig.innerHTML = `<strong>6-10</strong> VOLVER BASE ORIGINAL`;
+    btnOrig.onclick = () => actualizarEstado("6-10");
+    cont.appendChild(btnOrig);
     
     Object.keys(basesCache).forEach(idB => {
         const btn = document.createElement('button');
-        btn.className = 'btn-clave';
-        btn.innerText = basesCache[idB].nombre;
+        btn.className = 'btn-clave'; btn.innerText = basesCache[idB].nombre;
         btn.onclick = () => actualizarEstado(`6-10 (${idB})`);
         cont.appendChild(btn);
     });
@@ -159,8 +148,8 @@ function mostrarInputTramite() {
 }
 
 window.guardarTramite = () => {
-    const txt = document.getElementById('input-613').value;
-    if(txt) actualizarEstado(`6-13 (${txt})`);
+    const val = document.getElementById('input-613').value;
+    if(val) actualizarEstado(`6-13 (${val})`);
 };
 
 async function actualizarEstado(val) {
@@ -170,7 +159,7 @@ async function actualizarEstado(val) {
 
 window.cerrarModal = () => document.getElementById('modal-claves').style.display = 'none';
 
-// EMERGENCIA Y DISTANCIA
+// EMERGENCIA Y DISTANCIAS
 function getDistancia(lat1, lon1, lat2, lon2) {
     const R = 6371;
     const dLat = (lat2-lat1)*Math.PI/180;
@@ -183,6 +172,7 @@ window.abrirModalEmergencia = () => {
     document.getElementById('modal-emergencia').style.display = 'flex';
     puntoEmergencia = null;
     document.getElementById('em-direccion').value = '';
+    document.getElementById('em-notas').value = '';
 };
 
 window.cerrarModalEmergencia = () => document.getElementById('modal-emergencia').style.display = 'none';
@@ -241,7 +231,6 @@ window.cerrarGestion = () => {
     document.getElementById('asignadas-lista').innerHTML = '';
 };
 
-// LOGIN Y AUTH
 onAuthStateChanged(auth, async (u) => {
     if (u) {
         document.getElementById('login-screen').style.display = 'none';
@@ -249,20 +238,13 @@ onAuthStateChanged(auth, async (u) => {
         await cargarBases();
         initMap();
         escucharVehiculos();
-    } else {
-        document.getElementById('login-screen').style.display = 'flex';
-        document.getElementById('main-app').style.display = 'none';
     }
 });
 
 window.login = () => {
-    const e = document.getElementById('email').value;
-    const p = document.getElementById('password').value;
-    signInWithEmailAndPassword(auth, e, p).catch(err => alert("Error: " + err.message));
+    signInWithEmailAndPassword(auth, document.getElementById('email').value, document.getElementById('password').value).catch(e => alert(e.message));
 };
 window.logout = () => signOut(auth);
 window.toggleTheme = () => document.body.classList.toggle('light-mode');
-
-// EXPOSICIÓN DE FUNCIONES
 window.mostrarClavesPrincipales = mostrarClavesPrincipales;
 window.mostrarInputTramite = mostrarInputTramite;
