@@ -19,13 +19,12 @@ let map, markers = {};
 let unidadSeleccionada = null;
 let basesCache = {}; 
 
-// LISTA ACTUALIZADA: 6-8 INCLUIDO
 const listaClaves = [
     { cod: "6-3", desc: "En el lugar" }, 
     { cod: "6-7", desc: "Situación controlada" },
-    { cod: "6-8", desc: "Disponible (Base Origen)" }, 
+    { cod: "6-8", desc: "Disponible" }, // Solo cambia el color/estado, no mueve el marcador
     { cod: "6-9", desc: "Se retira del lugar" }, 
-    { cod: "6-10", desc: "En Base (Cobertura)" },
+    { cod: "6-10", desc: "En Base (Origen/Cobertura)" }, // Esta es la que mueve
     { cod: "6-11", desc: "En panne" }, 
     { cod: "6-12", desc: "Sufre colisión" },
     { cod: "6-13", desc: "Otros Trámites" }, 
@@ -85,6 +84,15 @@ function mostrarSeleccionBase() {
     document.getElementById('view-bases').style.display = 'block';
     const container = document.getElementById('bases-container');
     container.innerHTML = '';
+    
+    // Opción para volver a Base Original
+    const btnOrig = document.createElement('button');
+    btnOrig.className = 'btn-clave';
+    btnOrig.style.borderColor = "#ff4500";
+    btnOrig.innerText = "VOLVER A BASE ORIGINAL";
+    btnOrig.onclick = () => actualizarEstado("6-10");
+    container.appendChild(btnOrig);
+
     Object.keys(basesCache).forEach(idBase => {
         const btn = document.createElement('button');
         btn.className = 'btn-clave';
@@ -125,16 +133,23 @@ function escucharVehiculos() {
             
             let lat, lng;
 
+            // LÓGICA DE MOVIMIENTO: Solo si es 6-10 se recalcula la base
             if (est.includes('6-10')) {
                 const match = est.match(/\(([^)]+)\)/);
                 const idBase = match ? match[1] : null;
+                
                 if (idBase && basesCache[idBase]) {
+                    // Mover a base de cobertura
                     lat = basesCache[idBase].ubicacion.latitude;
                     lng = basesCache[idBase].ubicacion.longitude;
+                } else {
+                    // Es 6-10 a secas: Mover a base original
+                    lat = v.ubicacion.latitude;
+                    lng = v.ubicacion.longitude;
                 }
-            } 
-            
-            if (!lat || !lng) {
+            } else {
+                // Si NO es 6-10 (ej: es 6-8), mantiene la posición actual que tenga en Firebase
+                // o la última base conocida si no tiene GPS activo.
                 lat = v.ubicacion.latitude;
                 lng = v.ubicacion.longitude;
             }
@@ -146,7 +161,7 @@ function escucharVehiculos() {
             const finalLng = lng + offset;
             conteoPosiciones[posKey]++;
 
-            const iconCls = `custom-marker ${est === '6-3' ? 'marker-rojo' : (est.includes('6-10') ? 'marker-azul' : '')}`;
+            const iconCls = `custom-marker ${est === '6-3' ? 'marker-rojo' : (est.includes('6-10') ? 'marker-azul' : (est === '6-8' ? 'marker-verde' : ''))}`;
             const icon = L.divIcon({ className: iconCls, html: `<span>${id}</span>`, iconSize:[45,22] });
             
             if (markers[id]) markers[id].setLatLng([finalLat, finalLng]).setIcon(icon);
@@ -169,16 +184,13 @@ onAuthStateChanged(auth, async (u) => {
         await cargarBases();
         initMap();
         escucharVehiculos();
-    } else {
-        document.getElementById('login-screen').style.display = 'flex';
-        document.getElementById('main-app').style.display = 'none';
     }
 });
 
 window.login = () => {
     const e = document.getElementById('email').value;
     const p = document.getElementById('password').value;
-    signInWithEmailAndPassword(auth, e, p).catch(() => alert("Error de acceso"));
+    signInWithEmailAndPassword(auth, e, p).catch(() => alert("Acceso Denegado"));
 };
 window.logout = () => signOut(auth);
 window.toggleTheme = () => document.body.classList.toggle('light-mode');
