@@ -16,7 +16,7 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 
 let map, markers = {}, basesCache = {};
-let unidadSeleccionada = null, puntoEmergencia = null, cronometro = null;
+let unidadSeleccionada = null, puntoEmergencia = null, cronometro = null, tempMarker = null;
 
 const listaClaves = [
     { cod: "6-3", desc: "En el lugar" }, { cod: "6-7", desc: "Situación controlada" },
@@ -43,9 +43,28 @@ function initMap() {
         if (document.getElementById('modal-emergencia').style.display === 'flex') {
             puntoEmergencia = e.latlng;
             document.getElementById('em-direccion').value = `${e.latlng.lat.toFixed(5)}, ${e.latlng.lng.toFixed(5)}`;
+            
+            if (tempMarker) map.removeLayer(tempMarker);
+            tempMarker = L.marker(e.latlng).addTo(map);
         }
     });
 }
+
+window.buscarDireccion = async () => {
+    const query = document.getElementById('em-direccion').value;
+    if (query.length < 3) return;
+    try {
+        const resp = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`);
+        const data = await resp.json();
+        if (data.length > 0) {
+            const pos = [parseFloat(data[0].lat), parseFloat(data[0].lon)];
+            puntoEmergencia = { lat: pos[0], lng: pos[1] };
+            map.setView(pos, 16);
+            if (tempMarker) map.removeLayer(tempMarker);
+            tempMarker = L.marker(pos).addTo(map).bindPopup("Ubicación Encontrada").openPopup();
+        }
+    } catch (e) { console.error(e); }
+};
 
 function escucharVehiculos() {
     onSnapshot(collection(db, "material_mayor"), (snap) => {
@@ -58,21 +77,16 @@ function escucharVehiculos() {
             let lat, lng;
 
             if (est.startsWith('6-10') && est.includes('(')) {
-                const match = est.match(/\(([^)]+)\)/);
-                const idBase = match ? match[1] : null;
+                const idBase = est.match(/\(([^)]+)\)/)?.[1];
                 if (idBase && basesCache[idBase]) {
                     lat = basesCache[idBase].ubicacion.latitude;
                     lng = basesCache[idBase].ubicacion.longitude;
-                } else {
-                    lat = v.ubicacion.latitude; lng = v.ubicacion.longitude;
-                }
-            } else {
-                lat = v.ubicacion.latitude; lng = v.ubicacion.longitude;
-            }
+                } else { lat = v.ubicacion.latitude; lng = v.ubicacion.longitude; }
+            } else { lat = v.ubicacion.latitude; lng = v.ubicacion.longitude; }
 
             const posKey = `${lat.toFixed(6)},${lng.toFixed(6)}`;
             conteoPosiciones[posKey] = (conteoPosiciones[posKey] || 0) + 1;
-            const finalLat = lat + (conteoPosiciones[posKey] - 1) * 0.00018;
+            const finalLat = lat + (conteoPosiciones[posKey] - 1) * 0.0002;
 
             let colorCls = '';
             if (est.startsWith('6-3')) colorCls = 'marker-rojo';
@@ -112,7 +126,10 @@ window.mostrarClavesPrincipales = () => {
         btn.innerHTML = `<strong>${c.cod}</strong> ${c.desc}`;
         btn.onclick = () => {
             if (c.cod === "6-10") mostrarSeleccionBase();
-            else if (c.cod === "6-13") mostrarInputTramite();
+            else if (c.cod === "6-13") {
+                document.getElementById('view-claves').style.display = 'none';
+                document.getElementById('view-tramite').style.display = 'block';
+            }
             else window.actualizarEstado(c.cod);
         };
         container.appendChild(btn);
@@ -124,7 +141,6 @@ function mostrarSeleccionBase() {
     document.getElementById('view-bases').style.display = 'block';
     const cont = document.getElementById('bases-container');
     cont.innerHTML = '';
-
     const btnOrig = document.createElement('button');
     btnOrig.className = 'btn-clave'; btnOrig.style.gridColumn = "span 2";
     btnOrig.style.background = "#333"; btnOrig.style.border = "2px solid #3498db";
@@ -161,7 +177,10 @@ window.abrirModalEmergencia = () => {
     document.getElementById('em-direccion').value = '';
 };
 
-window.cerrarModalEmergencia = () => document.getElementById('modal-emergencia').style.display = 'none';
+window.cerrarModalEmergencia = () => {
+    document.getElementById('modal-emergencia').style.display = 'none';
+    if (tempMarker) map.removeLayer(tempMarker);
+};
 
 window.crearEmergencia = () => {
     const data = {
@@ -232,58 +251,7 @@ window.login = () => {
 };
 window.logout = () => signOut(auth);
 window.toggleTheme = () => document.body.classList.toggle('light-mode');
-window.mostrarClavesPrincipales = mostrarClavesPrincipales;
-window.mostrarInputTramite = () => {
-    document.getElementById('view-claves').style.display = 'none';
-    document.getElementById('view-tramite').style.display = 'block';
-};
 window.guardarTramite = () => {
     const val = document.getElementById('input-613').value;
     if(val) window.actualizarEstado(`6-13 (${val})`);
 };
-
-// BUSCADOR DE CALLES (Geocoding)
-window.buscarDireccion = async () => {
-    const query = document.getElementById('em-direccion').value;
-    if (query.length < 4) return;
-
-    try {
-        const resp = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`);
-        const data = await resp.json();
-
-        if (data.length > 0) {
-            const { lat, lon, display_name } = data[0];
-            const coords = [parseFloat(lat), parseFloat(lon)];
-            
-            puntoEmergencia = { lat: coords[0], lng: coords[1] };
-            map.setView(coords, 16);
-            
-            // Ponemos un marcador temporal para feedback visual
-            if (window.tempMarker) map.removeLayer(window.tempMarker);
-            window.tempMarker = L.marker(coords).addTo(map).bindPopup("Ubicación Encontrada").openPopup();
-            
-            document.getElementById('em-direccion').value = display_name;
-        } else {
-            alert("No se encontró la dirección. Intenta ser más específico (ej: agrega la ciudad).");
-        }
-    } catch (err) {
-        console.error("Error en búsqueda:", err);
-    }
-};
-
-// CORRECCIÓN DEL CLIC EN EL MAPA
-// Modifica tu initMap() o asegúrate que el evento esté así:
-function initMap() {
-    // ... tu código anterior de initMap ...
-    
-    map.on('click', (e) => {
-        // Solo capturar si el modal de emergencia está abierto
-        if (document.getElementById('modal-emergencia').style.display === 'flex') {
-            puntoEmergencia = e.latlng;
-            document.getElementById('em-direccion').value = `${e.latlng.lat.toFixed(5)}, ${e.latlng.lng.toFixed(5)}`;
-            
-            if (window.tempMarker) map.removeLayer(window.tempMarker);
-            window.tempMarker = L.marker(e.latlng).addTo(map);
-        }
-    });
-}
