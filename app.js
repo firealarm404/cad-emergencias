@@ -19,11 +19,25 @@ let map, markers = {};
 let unidadSeleccionada = null;
 let basesCache = {}; 
 
+// 1. RESTAURACIÓN DE TODAS LAS CLAVES
+const listaClaves = [
+    { cod: "6-3", desc: "En el lugar" }, 
+    { cod: "6-7", desc: "Situación controlada" },
+    { cod: "6-8", desc: "Disponible (Base Origen)" }, 
+    { cod: "6-9", desc: "Se retira del lugar" },
+    { cod: "6-10", desc: "En Base (Cobertura)" }, 
+    { cod: "6-11", desc: "En panne" },
+    { cod: "6-12", desc: "Sufre colisión" },
+    { cod: "6-13", desc: "Otros Tramites" },
+    { cod: "6-14", desc: "Carga Combustible" },
+    { cod: "6-15", desc: "Centro Asistencial" },
+    { cod: "6-18", desc: "Entra a tunel" },
+    { cod: "6-19", desc: "Sale del tunel" }
+];
+
 async function cargarBases() {
     const snap = await getDocs(collection(db, "bases"));
-    snap.forEach(d => {
-        basesCache[d.id] = d.data();
-    });
+    snap.forEach(d => { basesCache[d.id] = d.data(); });
 }
 
 function initMap() {
@@ -31,6 +45,11 @@ function initMap() {
     map = L.map('map').setView([-33.19, -70.45], 11);
     L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png').addTo(map);
 }
+
+// 2. FUNCIÓN PARA CERRAR MODAL (CORREGIDA)
+window.cerrarModal = () => {
+    document.getElementById('modal-claves').style.display = 'none';
+};
 
 window.abrirMenuClaves = (id) => {
     unidadSeleccionada = id;
@@ -45,13 +64,6 @@ window.mostrarClavesPrincipales = () => {
     const container = document.getElementById('view-claves');
     container.innerHTML = '';
     
-    const listaClaves = [
-        { cod: "6-3", desc: "En el lugar" }, 
-        { cod: "6-8", desc: "Disponible (Base Origen)" },
-        { cod: "6-10", desc: "En Base (Cobertura)" }, 
-        { cod: "6-11", desc: "En panne" }
-    ];
-
     listaClaves.forEach(c => {
         const btn = document.createElement('button');
         btn.className = 'btn-clave';
@@ -78,14 +90,19 @@ function mostrarSeleccionBase() {
 async function actualizarEstado(val) {
     try {
         await updateDoc(doc(db, "material_mayor", unidadSeleccionada), { estado: val });
-        document.getElementById('modal-claves').style.display = 'none';
-    } catch (e) { console.error("Error al actualizar:", e); }
+        window.cerrarModal();
+    } catch (e) { console.error(e); }
 }
 
+// 3. LÓGICA DE ESCUCHA CON "DISPERSIÓN" PARA NO SOLAPAR
 function escucharVehiculos() {
     onSnapshot(collection(db, "material_mayor"), (snap) => {
         const lista = document.getElementById('lista-vehiculos');
         lista.innerHTML = '';
+        
+        // Objeto temporal para contar cuántos vehículos hay por coordenada
+        const conteoPosiciones = {};
+
         snap.forEach(d => {
             const v = d.data();
             const id = d.id;
@@ -93,7 +110,6 @@ function escucharVehiculos() {
             
             let lat, lng;
 
-            // Si está en cobertura (6-10), usamos la coordenada de la base seleccionada
             if (est.includes('6-10')) {
                 const match = est.match(/\(([^)]+)\)/);
                 const idBase = match ? match[1] : null;
@@ -103,23 +119,38 @@ function escucharVehiculos() {
                 }
             } 
             
-            // Si no es cobertura o no se encuentra la base, usa su base original
             if (!lat || !lng) {
                 lat = v.ubicacion.latitude;
                 lng = v.ubicacion.longitude;
             }
 
-            const iconCls = `custom-marker ${est === '6-3' ? 'marker-rojo' : (est.includes('6-10') ? 'marker-azul' : '')}`;
+            // --- LÓGICA PARA EVITAR SOLAPAMIENTO ---
+            const posKey = `${lat.toFixed(6)},${lng.toFixed(6)}`;
+            if (!conteoPosiciones[posKey]) {
+                conteoPosiciones[posKey] = 0;
+            }
+            
+            // Si hay más de uno, desplazamos ligeramente el marcador (0.0001 aprox 10 metros)
+            const offset = conteoPosiciones[posKey] * 0.00015; 
+            const finalLat = lat + offset;
+            const finalLng = lng + offset;
+            conteoPosiciones[posKey]++;
+            // ---------------------------------------
+
+            const es63 = est === '6-3';
+            const es610 = est.includes('6-10');
+            const iconCls = `custom-marker ${es63 ? 'marker-rojo' : (es610 ? 'marker-azul' : '')}`;
             const icon = L.divIcon({ className: iconCls, html: `<span>${id}</span>`, iconSize:[45,22] });
             
             if (markers[id]) {
-                markers[id].setLatLng([lat, lng]).setIcon(icon);
+                markers[id].setLatLng([finalLat, finalLng]).setIcon(icon);
             } else {
-                markers[id] = L.marker([lat, lng], {icon}).addTo(map);
+                markers[id] = L.marker([finalLat, finalLng], {icon}).addTo(map);
             }
 
+            const claseEstado = `estado-${est.split(' ')[0].replace('-','')}`;
             lista.innerHTML += `
-                <div class="vehiculo-card" onclick="abrirMenuClaves('${id}')">
+                <div class="vehiculo-card ${claseEstado}" onclick="abrirMenuClaves('${id}')">
                     <div><strong>${id}</strong><br><small>${v.tipo || 'Unidad'}</small></div>
                     <div style="text-align:right"><strong>${est}</strong></div>
                 </div>`;
@@ -136,3 +167,11 @@ onAuthStateChanged(auth, async (u) => {
         escucharVehiculos();
     }
 });
+
+window.login = () => {
+    const e = document.getElementById('email').value;
+    const p = document.getElementById('password').value;
+    signInWithEmailAndPassword(auth, e, p);
+};
+window.logout = () => signOut(auth);
+window.toggleTheme = () => document.body.classList.toggle('light-mode');
