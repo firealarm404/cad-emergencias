@@ -184,11 +184,17 @@
                         <option value="Otras no categorizadas">Otras no categorizadas</option>
                     </optgroup>
                 </select>
-                <label>UBICACIÓN (Escribe la calle o haz clic en el mapa)</label>
-<div style="display:flex; gap:5px;">
-    <input type="text" id="em-direccion" placeholder="Ej: Av. Vitacura 123, Santiago">
-    <button onclick="buscarDireccion()" type="button" style="background:var(--azul); border:none; color:white; padding:0 15px; border-radius:6px; cursor:pointer;">🔍</button>
-</div>
+                
+                <label>UBICACIÓN (Escribe o haz clic en mapa)</label>
+                <div style="display:flex; gap:5px;">
+                    <input type="text" id="em-direccion" placeholder="Calle, ciudad o coordenadas">
+                    <button onclick="buscarDireccion()" type="button" class="btn-search">🔍</button>
+                </div>
+
+                <label>NOTAS</label>
+                <textarea id="em-notas" rows="2"></textarea>
+                <button onclick="crearEmergencia()" class="btn-despacho">GENERAR DESPACHO</button>
+            </div>
         </div>
     </div>
 
