@@ -19,12 +19,19 @@ let map, markers = {};
 let unidadSeleccionada = null;
 let basesCache = {}; 
 
+// LISTA ACTUALIZADA: 6-8 INCLUIDO
 const listaClaves = [
-    { cod: "6-3", desc: "En el lugar" }, { cod: "6-7", desc: "Situación controlada" },
-    { cod: "6-9", desc: "Se retira del lugar" }, { cod: "6-10", desc: "En Base" },
-    { cod: "6-11", desc: "En panne" }, { cod: "6-12", desc: "Sufre colisión" },
-    { cod: "6-13", desc: "Otros Trámites" }, { cod: "6-14", desc: "Carga Combustible" },
-    { cod: "6-15", desc: "Centro Asistencial" }, { cod: "6-18", desc: "Entra a túnel" },
+    { cod: "6-3", desc: "En el lugar" }, 
+    { cod: "6-7", desc: "Situación controlada" },
+    { cod: "6-8", desc: "Disponible (Base Origen)" }, 
+    { cod: "6-9", desc: "Se retira del lugar" }, 
+    { cod: "6-10", desc: "En Base (Cobertura)" },
+    { cod: "6-11", desc: "En panne" }, 
+    { cod: "6-12", desc: "Sufre colisión" },
+    { cod: "6-13", desc: "Otros Trámites" }, 
+    { cod: "6-14", desc: "Carga Combustible" },
+    { cod: "6-15", desc: "Centro Asistencial" }, 
+    { cod: "6-18", desc: "Entra a túnel" },
     { cod: "6-19", desc: "Sale del túnel" }
 ];
 
@@ -33,30 +40,17 @@ async function cargarBases() {
     snap.forEach(d => { basesCache[d.id] = d.data(); });
 }
 
-// CONFIGURACIÓN DE MAPA CON 3 CAPAS
 function initMap() {
     if (map) return;
-
     const vistaActual = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { attribution: '© CARTO' });
     const satelital = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: '© Esri' });
     const calles = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OSM' });
 
-    map = L.map('map', {
-        center: [-33.19, -70.45],
-        zoom: 11,
-        layers: [vistaActual]
-    });
-
-    const baseMaps = {
-        "Vista Actual": vistaActual,
-        "Vista Satelital": satelital,
-        "Mapa de Calles": calles
-    };
-
+    map = L.map('map', { center: [-33.19, -70.45], zoom: 11, layers: [vistaActual] });
+    const baseMaps = { "Vista Actual": vistaActual, "Vista Satelital": satelital, "Mapa de Calles": calles };
     L.control.layers(baseMaps).addTo(map);
 }
 
-// GESTIÓN DE MODALES Y VISTAS
 window.cerrarModal = () => { document.getElementById('modal-claves').style.display = 'none'; };
 
 window.abrirMenuClaves = (id) => {
@@ -118,7 +112,6 @@ async function actualizarEstado(val) {
     } catch (e) { console.error(e); }
 }
 
-// MONITOREO EN TIEMPO REAL
 function escucharVehiculos() {
     onSnapshot(collection(db, "material_mayor"), (snap) => {
         const lista = document.getElementById('lista-vehiculos');
@@ -128,7 +121,7 @@ function escucharVehiculos() {
         snap.forEach(d => {
             const v = d.data();
             const id = d.id;
-            const est = v.estado || "6-10"; // Estado inicial predefinido
+            const est = v.estado || "6-10";
             
             let lat, lng;
 
@@ -146,7 +139,6 @@ function escucharVehiculos() {
                 lng = v.ubicacion.longitude;
             }
 
-            // Evitar solapamiento (Jitter)
             const posKey = `${lat.toFixed(6)},${lng.toFixed(6)}`;
             if (!conteoPosiciones[posKey]) conteoPosiciones[posKey] = 0;
             const offset = conteoPosiciones[posKey] * 0.00018; 
@@ -170,7 +162,6 @@ function escucharVehiculos() {
     });
 }
 
-// LOGIN Y AUTH
 onAuthStateChanged(auth, async (u) => {
     if (u) {
         document.getElementById('login-screen').style.display = 'none';
@@ -191,7 +182,5 @@ window.login = () => {
 };
 window.logout = () => signOut(auth);
 window.toggleTheme = () => document.body.classList.toggle('light-mode');
-
-// Exponer funciones al objeto window para botones HTML
 window.mostrarClavesPrincipales = mostrarClavesPrincipales;
 window.mostrarInputTramite = mostrarInputTramite;
