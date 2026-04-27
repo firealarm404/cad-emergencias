@@ -196,3 +196,50 @@ window.logout = () => signOut(auth);
 window.toggleTheme = () => document.body.classList.toggle('light-mode');
 window.mostrarClavesPrincipales = mostrarClavesPrincipales;
 window.mostrarInputTramite = mostrarInputTramite;
+
+// --- FUNCIONES GLOBALES PARA MODALES ---
+
+// Abre el formulario de Nueva Emergencia (el botón +)
+window.abrirModalEmergencia = () => {
+    document.getElementById('modal-emergencia').style.display = 'flex';
+};
+
+// Cierra el formulario de Nueva Emergencia
+window.cerrarModalEmergencia = () => {
+    document.getElementById('modal-emergencia').style.display = 'none';
+};
+
+// Abre la ventana de claves cuando tocas un vehículo del sidebar
+window.abrirModalClaves = (idUnidad) => {
+    window.unidadSeleccionada = idUnidad; // Guardamos qué unidad es
+    document.getElementById('modal-titulo').innerText = idUnidad;
+    document.getElementById('modal-claves').style.display = 'flex';
+    // Aquí podrías llamar a una función que cargue las claves en 'view-claves'
+};
+
+// Cierra la ventana de claves
+window.cerrarModal = () => {
+    document.getElementById('modal-claves').style.display = 'none';
+};
+
+// Esta función se activa al presionar "GENERAR DESPACHO"
+window.crearEmergencia = () => {
+    const tipo = document.getElementById('em-tipo').value;
+    const direccion = document.getElementById('em-direccion').value;
+    
+    if (!direccion) {
+        alert("Por favor, marca un punto en el mapa primero.");
+        return;
+    }
+
+    // Cerramos el formulario y abrimos la GESTIÓN (Cronómetro)
+    document.getElementById('modal-emergencia').style.display = 'none';
+    document.getElementById('modal-gestion').style.display = 'flex';
+    
+    // Aquí inicias tu lógica de cronómetro y asignación
+    console.log("Emergencia creada:", tipo);
+};
+
+window.cerrarGestion = () => {
+    document.getElementById('modal-gestion').style.display = 'none';
+};
