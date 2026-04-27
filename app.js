@@ -241,3 +241,49 @@ window.guardarTramite = () => {
     const val = document.getElementById('input-613').value;
     if(val) window.actualizarEstado(`6-13 (${val})`);
 };
+
+// BUSCADOR DE CALLES (Geocoding)
+window.buscarDireccion = async () => {
+    const query = document.getElementById('em-direccion').value;
+    if (query.length < 4) return;
+
+    try {
+        const resp = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`);
+        const data = await resp.json();
+
+        if (data.length > 0) {
+            const { lat, lon, display_name } = data[0];
+            const coords = [parseFloat(lat), parseFloat(lon)];
+            
+            puntoEmergencia = { lat: coords[0], lng: coords[1] };
+            map.setView(coords, 16);
+            
+            // Ponemos un marcador temporal para feedback visual
+            if (window.tempMarker) map.removeLayer(window.tempMarker);
+            window.tempMarker = L.marker(coords).addTo(map).bindPopup("Ubicación Encontrada").openPopup();
+            
+            document.getElementById('em-direccion').value = display_name;
+        } else {
+            alert("No se encontró la dirección. Intenta ser más específico (ej: agrega la ciudad).");
+        }
+    } catch (err) {
+        console.error("Error en búsqueda:", err);
+    }
+};
+
+// CORRECCIÓN DEL CLIC EN EL MAPA
+// Modifica tu initMap() o asegúrate que el evento esté así:
+function initMap() {
+    // ... tu código anterior de initMap ...
+    
+    map.on('click', (e) => {
+        // Solo capturar si el modal de emergencia está abierto
+        if (document.getElementById('modal-emergencia').style.display === 'flex') {
+            puntoEmergencia = e.latlng;
+            document.getElementById('em-direccion').value = `${e.latlng.lat.toFixed(5)}, ${e.latlng.lng.toFixed(5)}`;
+            
+            if (window.tempMarker) map.removeLayer(window.tempMarker);
+            window.tempMarker = L.marker(e.latlng).addTo(map);
+        }
+    });
+}
