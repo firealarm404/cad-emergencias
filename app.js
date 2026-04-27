@@ -57,7 +57,6 @@ function escucharVehiculos() {
             const v = d.data(), id = d.id, est = v.estado || "6-10";
             let lat, lng;
 
-            // LÓGICA DE POSICIÓN: Detecta si es cobertura o base original
             if (est.startsWith('6-10') && est.includes('(')) {
                 const match = est.match(/\(([^)]+)\)/);
                 const idBase = match ? match[1] : null;
@@ -68,7 +67,6 @@ function escucharVehiculos() {
                     lat = v.ubicacion.latitude; lng = v.ubicacion.longitude;
                 }
             } else {
-                // Para 6-10 (limpio), 6-3, 6-8, etc. usa la ubicación del documento
                 lat = v.ubicacion.latitude; lng = v.ubicacion.longitude;
             }
 
@@ -95,7 +93,6 @@ function escucharVehiculos() {
     });
 }
 
-// GESTIÓN DE CLAVES
 window.abrirMenuClaves = (id) => {
     unidadSeleccionada = id;
     document.getElementById('modal-titulo').innerText = `Unidad: ${id}`;
@@ -131,7 +128,7 @@ function mostrarSeleccionBase() {
     const btnOrig = document.createElement('button');
     btnOrig.className = 'btn-clave'; btnOrig.style.gridColumn = "span 2";
     btnOrig.style.background = "#333"; btnOrig.style.border = "2px solid #3498db";
-    btnOrig.innerHTML = `<strong>BASE ORIGINAL</strong>`;
+    btnOrig.innerHTML = `<strong>BASE ORIGINAL</strong>`; 
     btnOrig.onclick = () => window.actualizarEstado("6-10");
     cont.appendChild(btnOrig);
     
@@ -143,17 +140,6 @@ function mostrarSeleccionBase() {
     });
 }
 
-function mostrarInputTramite() {
-    document.getElementById('view-claves').style.display = 'none';
-    document.getElementById('view-tramite').style.display = 'block';
-    document.getElementById('input-613').value = '';
-}
-
-window.guardarTramite = () => {
-    const val = document.getElementById('input-613').value;
-    if(val) window.actualizarEstado(`6-13 (${val})`);
-};
-
 window.actualizarEstado = async (val) => {
     await updateDoc(doc(db, "material_mayor", unidadSeleccionada), { estado: val });
     window.cerrarModal();
@@ -161,7 +147,6 @@ window.actualizarEstado = async (val) => {
 
 window.cerrarModal = () => document.getElementById('modal-claves').style.display = 'none';
 
-// EMERGENCIAS
 function getDistancia(lat1, lon1, lat2, lon2) {
     const R = 6371;
     const dLat = (lat2-lat1)*Math.PI/180;
@@ -247,3 +232,12 @@ window.login = () => {
 };
 window.logout = () => signOut(auth);
 window.toggleTheme = () => document.body.classList.toggle('light-mode');
+window.mostrarClavesPrincipales = mostrarClavesPrincipales;
+window.mostrarInputTramite = () => {
+    document.getElementById('view-claves').style.display = 'none';
+    document.getElementById('view-tramite').style.display = 'block';
+};
+window.guardarTramite = () => {
+    const val = document.getElementById('input-613').value;
+    if(val) window.actualizarEstado(`6-13 (${val})`);
+};
