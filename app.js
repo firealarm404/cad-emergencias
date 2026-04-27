@@ -26,14 +26,14 @@ async function cargarBases() {
 function initMap() {
     if (map) return;
 
-    // 1. VISTA CALLE (OpenStreetMap)
-    const vistaCalle = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© OpenStreetMap'
+    // 1. VISTA ACTUAL (CartoDB Voyager - Mapa claro y profesional)
+    const vistaActual = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+        attribution: '© OpenStreetMap © CartoDB'
     });
 
-    // 2. VISTA ACTUAL (CartoDB Dark - Ideal para el estilo oscuro del CAD)
-    const vistaActual = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-        attribution: '© CartoDB'
+    // 2. VISTA CALLE (OpenStreetMap Standard)
+    const vistaCalle = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap'
     });
 
     // 3. VISTA SATELITAL (Esri World Imagery)
@@ -44,24 +44,26 @@ function initMap() {
     map = L.map('map', {
         center: [-33.19, -70.45],
         zoom: 11,
-        layers: [vistaActual] // Iniciamos con la vista actual oscura
+        layers: [vistaActual] // Se inicia con CartoDB Voyager
     });
 
-    // CONTROL DE CAPAS (Arriba a la derecha)
+    // CONTROL DE CAPAS (Selector arriba a la derecha)
     const baseLayers = {
-        "Vista Actual (Oscura)": vistaActual,
+        "Vista Actual": vistaActual,
         "Mapa de Calles": vistaCalle,
         "Vista Satelital": vistaSat
     };
     L.control.layers(baseLayers).addTo(map);
 
-    // Evento de clic en el mapa para marcar ubicación
+    // Evento para capturar coordenadas al hacer clic (cuando el modal está abierto)
     map.on('click', (e) => {
-        if (document.getElementById('modal-emergencia').style.display === 'flex') {
+        const modal = document.getElementById('modal-emergencia');
+        if (modal && modal.style.display === 'flex') {
             puntoEmergencia = e.latlng;
             document.getElementById('em-direccion').value = `${e.latlng.lat.toFixed(5)}, ${e.latlng.lng.toFixed(5)}`;
+            
             if (tempMarker) map.removeLayer(tempMarker);
-            tempMarker = L.marker(e.latlng).addTo(map).bindPopup("Ubicación de Emergencia").openPopup();
+            tempMarker = L.marker(e.latlng).addTo(map).bindPopup("Ubicación marcada").openPopup();
         }
     });
 }
