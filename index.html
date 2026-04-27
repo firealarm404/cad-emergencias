@@ -47,6 +47,11 @@
                 <div class="claves-grid" id="bases-container"></div>
                 <button onclick="mostrarClavesPrincipales()" class="btn-back">VOLVER</button>
             </div>
+            <div id="view-tramite" style="display:none;">
+                <input type="text" id="input-613" placeholder="Detalle del trámite...">
+                <button onclick="guardarTramite()" class="btn-clave" style="background:var(--accent); margin-top:10px; width:100%;">GUARDAR</button>
+                <button onclick="mostrarClavesPrincipales()" class="btn-back">VOLVER</button>
+            </div>
         </div>
     </div>
 
@@ -60,43 +65,49 @@
                 <label>TIPO DE EMERGENCIA</label>
                 <select id="em-tipo">
                     <optgroup label="🔥 INCENDIO">
-                        <option value="Amago equipos mineros">Amago de incendio equipos mineros</option>
+                        <option value="Amago equipos mineros">Amago incendio equipos mineros</option>
                         <option value="Incendio Forestal">Incendio Forestal</option>
                         <option value="Pastizales/Basura">Pastizales y/o Basura</option>
-                        <option value="Pastizales/Basura">Pastizales y/o Basura</option>
+                        <option value="Incendio instalaciones">Incendio instalaciones</option>
                     </optgroup>
                     <optgroup label="🚔 VEHICULAR">
                         <option value="Choque livianos">Choque vehículos livianos</option>
                         <option value="Colisión Pesados">Colisión vehículos pesados</option>
                         <option value="Volcamiento">Volcamiento</option>
-                    </optgroup>
-                    <optgroup label="🪜 RESCATE">
-                        <option value="Caída nivel">Caída mismo nivel</option>
-                        <option value="Atrapamiento">Atrapamiento</option>
+                        <option value="Desbarrancamiento">Desbarrancamiento</option>
                     </optgroup>
                     <optgroup label="🩺 MEDICO">
                         <option value="PCR">PCR</option>
                         <option value="Fractura">Fractura</option>
                         <option value="Desmayo">Desmayo / Inconsciente</option>
+                        <option value="Crisis Panico">Crisis de Pánico</option>
+                    </optgroup>
+                    <optgroup label="🪜 RESCATE">
+                        <option value="Atrapamiento">Atrapamiento</option>
+                        <option value="Rescate vertical">Rescate vertical</option>
+                        <option value="Espacio confinado">Rescate espacio confinado</option>
                     </optgroup>
                     <optgroup label="☢️ HAZMAT">
                         <option value="Derrame">Derrame de sustancias</option>
-                        <option value="Fuga">Fuga de gases</option>
+                        <option value="Fuga">Fuga de sustancias/gases</option>
                     </optgroup>
                     <optgroup label="⚙️ OTROS">
-                        <option value="Activacion SPCI">Activación de alarma SPCI</option>
+                        <option value="Activacion SPCI">Activación alarma SPCI</option>
                         <option value="Rescate animal">Rescate animal</option>
+                        <option value="Sismo">Sismo / Terremoto</option>
+                        <option value="Meteorologico">Evento Meteorológico</option>
                     </optgroup>
                 </select>
                 
                 <label>UBICACIÓN (Haz clic en mapa o busca)</label>
                 <div style="display:flex; gap:5px;">
-                    <input type="text" id="em-direccion" placeholder="Calle o Coordenadas">
+                    <input type="text" id="em-direccion" placeholder="Calle, ciudad o coordenadas">
                     <button onclick="buscarDireccion()" type="button" class="btn-search">🔍</button>
                 </div>
 
-                <label>NOTAS</label>
-                <textarea id="em-notas" rows="2"></textarea>
+                <label>NOTAS ADICIONALES</label>
+                <textarea id="em-notas" rows="2" placeholder="Detalles de la emergencia..."></textarea>
+                
                 <button onclick="crearEmergencia()" class="btn-despacho">GENERAR DESPACHO</button>
             </div>
         </div>
@@ -105,4 +116,4 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script type="module" src="app.js"></script>
 </body>
-</html>
+</html>/html>
