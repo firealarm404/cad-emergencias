@@ -366,14 +366,23 @@ import { getFirestore, collection, doc,
 // ════════════════════════════════════════════════
 // 0. CONFIG — reemplaza con tu proyecto Firebase
 // ════════════════════════════════════════════════
+// Import the functions you need from the SDKs you need
+import { initializeApp } from "firebase/app";
+// TODO: Add SDKs for Firebase products that you want to use
+// https://firebase.google.com/docs/web/setup#available-libraries
+
+// Your web app's Firebase configuration
 const firebaseConfig = {
-  apiKey:            "TU_API_KEY",
-  authDomain:        "TU_PROJECT.firebaseapp.com",
-  projectId:         "TU_PROJECT_ID",
-  storageBucket:     "TU_PROJECT.appspot.com",
-  messagingSenderId: "TU_SENDER_ID",
-  appId:             "TU_APP_ID"
+  apiKey: "AIzaSyBrKdfr-s_SIh4OJDY4blSTN-FC8aNEsIY",
+  authDomain: "cad-emergencias-cd5fe.firebaseapp.com",
+  projectId: "cad-emergencias-cd5fe",
+  storageBucket: "cad-emergencias-cd5fe.firebasestorage.app",
+  messagingSenderId: "1039746288952",
+  appId: "1:1039746288952:web:54167eff598aab67c205cd"
 };
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
 
 // ════════════════════════════════════════════════
 // 1. CONSTANTS
