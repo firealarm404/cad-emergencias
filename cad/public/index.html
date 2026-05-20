@@ -1,0 +1,1329 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CAD · Centro de Monitoreo de Emergencias</title>
+
+<!-- Leaflet CSS -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<!-- Fonts -->
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;500;600;700&family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
+
+<style>
+/* ═══════════════════════════════════════════════════════════════════════════
+   RESET & VARIABLES
+═══════════════════════════════════════════════════════════════════════════ */
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#0a0e14;--bg2:#111722;--bg3:#161d2b;--bg4:#0d1420;
+  --border:#1e2d45;--border2:#243550;
+  --accent:#00d4ff;--accent2:#ff6b35;
+  --danger:#ff3344;--warn:#ffaa00;--ok:#00cc66;
+  --purple:#aa44ff;
+  --text:#c8d8f0;--text2:#6a8ab0;--text3:#3d5a80;
+  --font:'Rajdhani',sans-serif;--mono:'Share Tech Mono',monospace;
+  --topbar-h:44px;
+}
+html,body{height:100%;overflow:hidden}
+body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14px;display:flex;flex-direction:column}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   TOPBAR
+═══════════════════════════════════════════════════════════════════════════ */
+#topbar{
+  background:var(--bg2);border-bottom:2px solid var(--border2);
+  height:var(--topbar-h);padding:0 14px;
+  display:flex;align-items:center;gap:10px;flex-shrink:0;z-index:1000;
+}
+.logo{font-family:'Orbitron',sans-serif;font-size:12px;font-weight:700;color:var(--accent);letter-spacing:2px;white-space:nowrap}
+.live-pill{background:#ff000018;border:1px solid var(--danger);color:var(--danger);font-size:9px;padding:2px 7px;border-radius:2px;font-family:var(--mono);letter-spacing:1px;animation:blink 1.4s infinite;flex-shrink:0}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.35}}
+
+.view-tabs{display:flex;gap:2px;margin-left:10px}
+.tab{padding:4px 13px;font-size:11px;font-family:var(--font);font-weight:600;letter-spacing:1px;text-transform:uppercase;border:1px solid var(--border2);background:transparent;color:var(--text2);cursor:pointer;transition:all .18s;border-radius:2px;white-space:nowrap}
+.tab.active{background:var(--accent);color:#000;border-color:var(--accent)}
+.tab:hover:not(.active){border-color:var(--accent);color:var(--accent)}
+
+#clock{font-family:var(--mono);font-size:13px;color:var(--accent);margin-left:auto;flex-shrink:0}
+#conn-dot{width:8px;height:8px;border-radius:50%;background:var(--text3);flex-shrink:0;transition:background .3s}
+#conn-dot.online{background:var(--ok)}
+#conn-dot.offline{background:var(--danger)}
+
+/* map layer toggle */
+.map-toggle{display:flex;gap:2px;flex-shrink:0}
+.mt-btn{padding:3px 9px;font-size:10px;font-family:var(--mono);border:1px solid var(--border2);background:transparent;color:var(--text2);cursor:pointer;border-radius:2px;transition:all .15s}
+.mt-btn.active{background:var(--accent);color:#000;border-color:var(--accent)}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   LAYOUT
+═══════════════════════════════════════════════════════════════════════════ */
+#app{display:flex;flex:1;overflow:hidden}
+
+/* ── Sidebar ── */
+.sidebar{width:255px;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;flex-shrink:0}
+.sb-section{border-bottom:1px solid var(--border);padding:9px 11px;flex-shrink:0}
+.sb-title{font-size:9px;font-family:var(--mono);color:var(--text3);letter-spacing:2px;text-transform:uppercase;margin-bottom:7px}
+.sb-scroll{flex:1;overflow-y:auto}
+.sb-scroll::-webkit-scrollbar{width:3px}
+.sb-scroll::-webkit-scrollbar-thumb{background:var(--border2)}
+
+/* ── Map ── */
+#map-wrap{flex:1;position:relative;overflow:hidden;min-width:0}
+#map{width:100%;height:100%}
+
+/* Leaflet dark override */
+.leaflet-container{background:#0a0e14!important}
+.leaflet-control-zoom a{background:var(--bg2)!important;color:var(--text)!important;border-color:var(--border2)!important}
+.leaflet-control-zoom a:hover{background:var(--bg3)!important;color:var(--accent)!important}
+.leaflet-control-attribution{background:rgba(10,14,20,.85)!important;color:var(--text3)!important;font-size:9px!important}
+.leaflet-control-attribution a{color:var(--text3)!important}
+
+/* ── Right panel ── */
+.rpanel{width:295px;background:var(--bg2);border-left:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;flex-shrink:0}
+.rp-hdr{padding:9px 11px;border-bottom:1px solid var(--border);font-size:9px;font-family:var(--mono);color:var(--text3);letter-spacing:2px;text-transform:uppercase;flex-shrink:0}
+.rp-scroll{flex:1;overflow-y:auto;padding:7px}
+.rp-scroll::-webkit-scrollbar{width:3px}
+.rp-scroll::-webkit-scrollbar-thumb{background:var(--border2)}
+
+/* ── Admin full-width ── */
+#admin-wrap{flex:1;overflow-y:auto;display:none;flex-direction:column}
+#admin-wrap.visible{display:flex}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   UNIT ROWS
+═══════════════════════════════════════════════════════════════════════════ */
+.unit-row{display:flex;align-items:center;gap:7px;padding:4px 7px;border-radius:3px;cursor:pointer;transition:background .12s}
+.unit-row:hover{background:var(--bg3)}
+.unit-badge{font-family:var(--mono);font-size:10px;font-weight:700;padding:2px 5px;border-radius:2px;min-width:54px;text-align:center;flex-shrink:0}
+.bb{background:#ff6b3518;color:var(--accent2);border:1px solid var(--accent2)}
+.bu{background:#00d4ff18;color:var(--accent);border:1px solid var(--accent)}
+.bs{background:#00cc6618;color:var(--ok);border:1px solid var(--ok)}
+
+.unit-name{font-size:11px;color:var(--text2);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.status-pill{font-size:9px;padding:1px 5px;border-radius:2px;font-family:var(--mono);flex-shrink:0;white-space:nowrap}
+.sp-68{background:#00cc6618;color:var(--ok);border:1px solid #00cc6630}
+.sp-63{background:#ff334418;color:var(--danger);border:1px solid #ff334430}
+.sp-69{background:#ffaa0018;color:var(--warn);border:1px solid #ffaa0030}
+.sp-610{background:#6a8ab018;color:var(--text2);border:1px solid var(--border)}
+.sp-611{background:#ff6b3518;color:var(--accent2);border:1px solid #ff6b3530}
+.sp-612{background:#ff334418;color:var(--danger);border:1px solid #ff334430}
+.sp-613,.sp-614{background:#ffaa0018;color:var(--warn);border:1px solid #ffaa0030}
+.sp-615{background:#aa44ff18;color:var(--purple);border:1px solid #aa44ff30}
+.sp-618,.sp-619{background:#00d4ff18;color:var(--accent);border:1px solid #00d4ff30}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   EMERGENCY CARDS
+═══════════════════════════════════════════════════════════════════════════ */
+.emerg-card{background:var(--bg3);border:1px solid var(--border);border-left:3px solid var(--text3);border-radius:3px;padding:8px 9px;margin-bottom:5px;cursor:pointer;transition:all .15s}
+.emerg-card:hover{border-right-color:var(--accent);border-top-color:var(--accent);border-bottom-color:var(--accent)}
+.ec-active{border-left-color:var(--danger)!important;animation:ecPulse 2.5s infinite}
+.ec-standby{border-left-color:var(--warn)!important}
+.ec-resolved{border-left-color:var(--text3)!important;opacity:.8}
+@keyframes ecPulse{0%,100%{box-shadow:none}50%{box-shadow:0 0 6px #ff334430}}
+.ec-id{font-family:var(--mono);font-size:9px;color:var(--text3)}
+.ec-type{font-size:13px;font-weight:700;color:var(--text);margin:2px 0 1px}
+.ec-sub{font-size:11px;color:var(--text2)}
+.ec-meta{display:flex;gap:6px;margin-top:3px;font-size:9px;font-family:var(--mono);color:var(--text3);flex-wrap:wrap}
+.ec-units{display:flex;gap:3px;flex-wrap:wrap;margin-top:4px}
+.eunit{font-size:9px;padding:1px 5px;border-radius:2px;background:var(--bg4);border:1px solid var(--border2);font-family:var(--mono);color:var(--accent)}
+.ec-actions{display:flex;gap:5px;margin-top:6px}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   STAT BOXES
+═══════════════════════════════════════════════════════════════════════════ */
+.stat-row{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;padding:10px}
+.stat-box{background:var(--bg3);border:1px solid var(--border);border-radius:3px;padding:9px 6px;text-align:center}
+.stat-n{font-family:'Orbitron',sans-serif;font-size:20px;font-weight:700;line-height:1}
+.stat-l{font-size:9px;font-family:var(--mono);color:var(--text3);margin-top:3px;letter-spacing:1px;text-transform:uppercase}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   BUTTONS
+═══════════════════════════════════════════════════════════════════════════ */
+.btn{padding:5px 12px;font-family:var(--font);font-weight:600;font-size:11px;letter-spacing:1px;text-transform:uppercase;border-radius:2px;cursor:pointer;transition:all .15s;border:1px solid;white-space:nowrap}
+.btn-primary{background:var(--accent);color:#000;border-color:var(--accent)}
+.btn-primary:hover{background:#00b5d6}
+.btn-danger{background:var(--danger);color:#fff;border-color:var(--danger)}
+.btn-danger:hover{background:#dd1122}
+.btn-warn{background:var(--warn);color:#000;border-color:var(--warn)}
+.btn-warn:hover{background:#dd9900}
+.btn-ok{background:var(--ok);color:#000;border-color:var(--ok)}
+.btn-ok:hover{background:#00aa55}
+.btn-outline{background:transparent;color:var(--accent);border-color:var(--accent)}
+.btn-outline:hover{background:#00d4ff12}
+.btn-ghost{background:transparent;color:var(--text2);border-color:var(--border2)}
+.btn-ghost:hover{border-color:var(--text2);color:var(--text)}
+.btn-sm{padding:3px 8px;font-size:10px}
+.btn-xs{padding:2px 6px;font-size:9px}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   FORMS
+═══════════════════════════════════════════════════════════════════════════ */
+.fg{margin-bottom:11px}
+.fl{font-size:9px;font-family:var(--mono);color:var(--text3);letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;display:block}
+.fc{width:100%;background:var(--bg3);border:1px solid var(--border2);color:var(--text);padding:6px 9px;font-family:var(--font);font-size:12px;border-radius:2px;outline:none;transition:border-color .15s}
+.fc:focus{border-color:var(--accent)}
+.fc option{background:var(--bg3)}
+textarea.fc{resize:vertical;min-height:60px}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   MODAL
+═══════════════════════════════════════════════════════════════════════════ */
+.modal-ov{position:fixed;inset:0;background:#00000090;z-index:2000;display:flex;align-items:center;justify-content:center;padding:16px}
+.modal{background:var(--bg2);border:1px solid var(--border2);border-top:2px solid var(--accent);width:min(560px,100%);max-height:88vh;overflow-y:auto;border-radius:3px;display:flex;flex-direction:column}
+.modal::-webkit-scrollbar{width:3px}
+.modal::-webkit-scrollbar-thumb{background:var(--border2)}
+.modal-hdr{padding:13px 15px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.modal-title{font-family:'Orbitron',sans-serif;font-size:12px;color:var(--accent);letter-spacing:1px}
+.modal-body{padding:15px;overflow-y:auto}
+.modal-ftr{padding:10px 15px;border-top:1px solid var(--border);display:flex;gap:7px;justify-content:flex-end;flex-shrink:0}
+.xbtn{background:transparent;border:none;color:var(--text2);cursor:pointer;font-size:17px;line-height:1;padding:2px}
+.xbtn:hover{color:var(--danger)}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   TAGS
+═══════════════════════════════════════════════════════════════════════════ */
+.tag{display:inline-flex;align-items:center;font-size:9px;padding:2px 6px;border-radius:2px;font-family:var(--mono);white-space:nowrap}
+.tag-active{background:#ff334418;color:var(--danger);border:1px solid #ff334430}
+.tag-resolved{background:#00cc6618;color:var(--ok);border:1px solid #00cc6630}
+.tag-standby{background:#ffaa0018;color:var(--warn);border:1px solid #ffaa0030}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   LEAFLET CUSTOM MARKERS
+═══════════════════════════════════════════════════════════════════════════ */
+.lm-unit{
+  background:var(--bg2);border:1px solid;border-radius:3px;
+  font-family:var(--mono);font-size:10px;font-weight:700;
+  padding:2px 6px;white-space:nowrap;cursor:pointer;
+  box-shadow:0 2px 8px #00000060;
+  display:flex;align-items:center;gap:4px;
+}
+.lm-unit:hover{transform:scale(1.12)}
+.lm-base{
+  background:var(--bg2);border:1px dashed var(--text3);border-radius:3px;
+  font-family:var(--mono);font-size:9px;color:var(--text3);
+  padding:2px 6px;white-space:nowrap;
+  box-shadow:0 1px 4px #00000060;
+}
+.lm-emerg{
+  width:14px;height:14px;border-radius:50%;
+  background:var(--danger);
+  box-shadow:0 0 12px var(--danger);
+  animation:epulse 1s infinite;
+}
+@keyframes epulse{0%,100%{box-shadow:0 0 0 0 #ff334455}50%{box-shadow:0 0 0 8px #ff334400}}
+
+/* popup */
+.leaflet-popup-content-wrapper{background:var(--bg2)!important;border:1px solid var(--border2)!important;border-top:2px solid var(--accent)!important;border-radius:3px!important;color:var(--text)!important;box-shadow:0 4px 16px #00000090!important}
+.leaflet-popup-tip{background:var(--bg2)!important}
+.leaflet-popup-content{margin:10px 12px!important;font-family:var(--font)!important;font-size:12px!important}
+.pu-name{font-weight:700;font-size:14px;margin-bottom:6px}
+.pu-row{display:flex;justify-content:space-between;gap:12px;margin-bottom:3px;font-size:11px}
+.pu-key{color:var(--text3)}
+.pu-val{color:var(--text);text-align:right}
+.pu-actions{margin-top:8px;display:flex;gap:5px}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ADMIN
+═══════════════════════════════════════════════════════════════════════════ */
+.admin-top-bar{padding:9px 12px;border-bottom:1px solid var(--border);font-size:9px;font-family:var(--mono);color:var(--text3);letter-spacing:2px;flex-shrink:0}
+.admin-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:12px}
+.admin-card{background:var(--bg3);border:1px solid var(--border);border-radius:3px;padding:11px}
+.admin-card-full{grid-column:1/-1}
+.ac-title{font-size:10px;font-family:var(--mono);color:var(--accent);letter-spacing:2px;text-transform:uppercase;margin-bottom:9px;padding-bottom:6px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.arow{display:flex;align-items:center;gap:7px;padding:4px 0;border-bottom:1px dashed var(--border)}
+.arow:last-child{border-bottom:none}
+.arow-name{font-size:11px;color:var(--text);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ibtn{background:transparent;border:1px solid var(--border);color:var(--text2);width:22px;height:22px;border-radius:2px;cursor:pointer;font-size:11px;display:flex;align-items:center;justify-content:center;transition:all .15s;flex-shrink:0}
+.ibtn:hover{border-color:var(--accent);color:var(--accent)}
+.ibtn.del:hover{border-color:var(--danger);color:var(--danger)}
+
+/* chart */
+.bar-row{display:flex;align-items:center;gap:7px;margin-bottom:5px}
+.bar-lbl{font-size:10px;font-family:var(--mono);color:var(--text2);width:105px;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bar-track{flex:1;height:14px;background:var(--bg);border:1px solid var(--border);border-radius:2px;overflow:hidden}
+.bar-fill{height:100%;border-radius:2px;transition:width .6s}
+.bar-val{font-size:10px;font-family:var(--mono);color:var(--text2);width:24px;text-align:right}
+
+/* history table */
+.htable{width:100%;border-collapse:collapse}
+.htable th{font-size:9px;font-family:var(--mono);color:var(--text3);letter-spacing:1px;text-transform:uppercase;padding:5px 7px;border-bottom:1px solid var(--border);text-align:left;white-space:nowrap}
+.htable td{padding:4px 7px;border-bottom:1px dashed var(--border);font-size:11px;vertical-align:middle}
+.htable tr:hover td{background:var(--bg2)}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   NOTIFICATIONS
+═══════════════════════════════════════════════════════════════════════════ */
+#notif-stack{position:fixed;top:52px;right:10px;z-index:3000;display:flex;flex-direction:column;gap:5px;pointer-events:none}
+.notif{background:var(--bg2);border:1px solid var(--border2);border-left:3px solid var(--accent);padding:9px 13px;border-radius:3px;font-size:11px;animation:nIn .25s ease;max-width:275px;pointer-events:none}
+@keyframes nIn{from{transform:translateX(110%);opacity:0}to{transform:none;opacity:1}}
+.notif-fade{animation:nOut .3s ease forwards}
+@keyframes nOut{to{transform:translateX(110%);opacity:0}}
+.notif-sub{font-size:9px;font-family:var(--mono);color:var(--text3);margin-bottom:3px}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   MISC
+═══════════════════════════════════════════════════════════════════════════ */
+.banner-active{background:linear-gradient(135deg,#ff334410,transparent);border:1px solid #ff334428;border-radius:3px;padding:10px 13px;margin:10px;display:flex;align-items:center;gap:10px}
+.separator{height:1px;background:var(--border);margin:4px 0}
+.legend-item{display:flex;align-items:center;gap:5px;font-size:9px;font-family:var(--mono);color:var(--text2);margin-bottom:3px}
+.ldot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.faded{opacity:.55}
+.loading-overlay{position:absolute;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:500;flex-direction:column;gap:12px}
+.spinner{width:32px;height:32px;border:2px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════
+     TOPBAR
+══════════════════════════════════════════════ -->
+<div id="topbar">
+  <svg width="26" height="26" viewBox="0 0 28 28"><circle cx="14" cy="14" r="13" fill="none" stroke="#00d4ff" stroke-width="1.5"/><path d="M14 5v9l6 3" stroke="#ff6b35" stroke-width="2" stroke-linecap="round"/><circle cx="14" cy="14" r="2.5" fill="#00d4ff"/></svg>
+  <span class="logo">CAD · Centro de Monitoreo</span>
+  <span class="live-pill">● LIVE</span>
+  <div class="view-tabs">
+    <button class="tab" id="tab-pub"  onclick="setView('public')">Público</button>
+    <button class="tab" id="tab-op"   onclick="setView('operator')">Operador</button>
+    <button class="tab" id="tab-adm"  onclick="setView('admin')">Admin</button>
+  </div>
+  <div class="map-toggle" id="map-layer-btns">
+    <button class="mt-btn active" id="btn-carto"  onclick="setLayer('carto')">CartoDB</button>
+    <button class="mt-btn"        id="btn-sat"    onclick="setLayer('sat')">Satélite</button>
+    <button class="mt-btn"        id="btn-street" onclick="setLayer('street')">Calles</button>
+  </div>
+  <div id="conn-dot" title="Firebase"></div>
+  <span id="clock">--:--:--</span>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     APP
+══════════════════════════════════════════════ -->
+<div id="app">
+
+  <!-- ── SIDEBAR ── -->
+  <div class="sidebar" id="sidebar">
+    <div class="sb-section" id="sb-op-btn" style="display:none">
+      <button class="btn btn-danger" style="width:100%" onclick="openNewEmerg()">⚡ NUEVA EMERGENCIA</button>
+    </div>
+    <div class="sb-section">
+      <div class="sb-title">Material Mayor</div>
+      <div id="units-list"></div>
+    </div>
+    <div class="sb-section">
+      <div class="sb-title">Claves de Estado</div>
+      <div id="legend-list"></div>
+    </div>
+  </div>
+
+  <!-- ── MAP ── -->
+  <div id="map-wrap" style="position:relative">
+    <div class="loading-overlay" id="map-loading">
+      <div class="spinner"></div>
+      <span style="font-family:var(--mono);font-size:11px;color:var(--text3)">CARGANDO MAPA…</span>
+    </div>
+    <div id="map"></div>
+  </div>
+
+  <!-- ── RIGHT PANEL ── -->
+  <div class="rpanel" id="rpanel">
+    <div class="rp-hdr" id="rp-hdr">Estado del Servicio</div>
+    <div class="stat-row" id="stat-row"></div>
+    <div id="active-banner"></div>
+    <div class="rp-hdr" id="rp-hist-hdr">Historial</div>
+    <div class="rp-scroll" id="rp-hist"></div>
+  </div>
+
+  <!-- ── ADMIN (full width, hidden by default) ── -->
+  <div id="admin-wrap">
+    <div class="admin-top-bar">PANEL DE ADMINISTRACIÓN — ACCESO RESTRINGIDO</div>
+    <div class="stat-row" id="adm-stats"></div>
+    <div class="admin-grid" id="adm-grid"></div>
+  </div>
+
+</div>
+
+<!-- ── MODAL CONTAINER ── -->
+<div id="modal-root"></div>
+<!-- ── NOTIFICATIONS ── -->
+<div id="notif-stack"></div>
+
+<!-- ══════════════════════════════════════════════
+     SCRIPTS
+══════════════════════════════════════════════ -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<!-- Firebase (CDN, no build step) -->
+<script type="module">
+import { initializeApp }                           from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
+import { getFirestore, collection, doc,
+         onSnapshot, getDocs, getDoc,
+         setDoc, updateDoc, deleteDoc,
+         query, orderBy, serverTimestamp,
+         writeBatch }                              from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
+
+// ════════════════════════════════════════════════
+// 0. CONFIG — reemplaza con tu proyecto Firebase
+// ════════════════════════════════════════════════
+const firebaseConfig = {
+  apiKey:            "TU_API_KEY",
+  authDomain:        "TU_PROJECT.firebaseapp.com",
+  projectId:         "TU_PROJECT_ID",
+  storageBucket:     "TU_PROJECT.appspot.com",
+  messagingSenderId: "TU_SENDER_ID",
+  appId:             "TU_APP_ID"
+};
+
+// ════════════════════════════════════════════════
+// 1. CONSTANTS
+// ════════════════════════════════════════════════
+const STATUS_MAP = {
+  "6-3":  { label:"6-3  En el lugar",          color:"#ff3344", cls:"sp-63"  },
+  "6-8":  { label:"6-8  Disponible",            color:"#00cc66", cls:"sp-68"  },
+  "6-9":  { label:"6-9  Se retira del lugar",   color:"#ffaa00", cls:"sp-69"  },
+  "6-10": { label:"6-10 En la Base",             color:"#6a8ab0", cls:"sp-610" },
+  "6-11": { label:"6-11 En panne",              color:"#ff6b35", cls:"sp-611" },
+  "6-12": { label:"6-12 Colisión Mat. Mayor",   color:"#ff3344", cls:"sp-612" },
+  "6-13": { label:"6-13 Trámite de Brigada",    color:"#ffaa00", cls:"sp-613" },
+  "6-14": { label:"6-14 Carga de Combustible",  color:"#ffaa00", cls:"sp-614" },
+  "6-15": { label:"6-15 Centro Asistencial",    color:"#aa44ff", cls:"sp-615" },
+  "6-18": { label:"6-18 Ingresa a túnel",       color:"#00d4ff", cls:"sp-618" },
+  "6-19": { label:"6-19 Sale del túnel",        color:"#00d4ff", cls:"sp-619" },
+};
+
+const BASES = [
+  { id:"base-bronces",  name:"Base Bronces",                  lat:-33.14662143611822,  lng:-70.28583374914044 },
+  { id:"base-220",      name:"Base 220",                      lat:-33.14682707629566,  lng:-70.28571413531755 },
+  { id:"base-mina",     name:"Base Mina",                     lat:-33.159861618653856, lng:-70.29357723357634 },
+  { id:"base-perez",    name:"Base Pérez Caldera",            lat:-33.19051211335887,  lng:-70.33926026343906 },
+  { id:"base-tortolas", name:"Base Tórtolas",                 lat:-33.14553886977589,  lng:-70.69935489471872 },
+  { id:"base-poli-lt",  name:"Base Policlínico Las Tórtolas", lat:-33.14568448993652,  lng:-70.69952359685848 },
+  { id:"base-ermita",   name:"Base Ermita",                   lat:-33.3683866974452,   lng:-70.3976797205951  },
+];
+
+const CENTROS = [
+  "Hospital San Juan de Dios","Hospital Clínico San Borja Arriarán",
+  "Hospital Barros Luco Trudeau","Hospital Sótero del Río","Hospital El Pino",
+  "Hospital Padre Hurtado","Hospital Félix Bulnes","Hospital del Salvador",
+  "Hospital Luis Calvo Mackenna","Hospital Roberto del Río","Hospital Luis Tisné",
+  "Hospital Exequiel González Cortés","Hospital de Urgencia Asistencia Pública (Posta Central)",
+  "Hospital Metropolitano de Santiago","Hospital del Tórax","Clínica Alemana",
+  "Clínica Las Condes","Clínica Indisa","Clínica Santa María","Clínica Dávila",
+  "Clínica Bupa Santiago","Clínica Vespucio","Clínica Universidad de los Andes",
+  "Clínica RedSalud UC Christus","Clínica Dávila Vespucio",
+  "Hospital Clínico Mutual de Seguridad CChC","Hospital del Trabajador ACHS","Hospital IST Santiago",
+];
+
+const CHART_COLORS = ["#00d4ff","#ff6b35","#00cc66","#ffaa00","#ff3344","#aa44ff","#00d4ff","#ff6b35","#00cc66","#ffaa00"];
+
+const UNIT_SEEDS = [
+  {id:"B1",     name:"Brigada Bronces",           brigade:"Bronces",        type:"bomba", status:"6-8",  lat:-33.14662, lng:-70.28583},
+  {id:"B2",     name:"Brigada Tórtolas",           brigade:"Tórtolas",       type:"bomba", status:"6-10", lat:-33.14554, lng:-70.69935},
+  {id:"UIR-M",  name:"Brigada Mina",               brigade:"Mina",           type:"uir",   status:"6-3",  lat:-33.15986, lng:-70.29357},
+  {id:"UIR-E",  name:"Brigada Ermita",             brigade:"Ermita",         type:"uir",   status:"6-8",  lat:-33.36839, lng:-70.39768},
+  {id:"UIR-STP",name:"Brigada Mineroducto",        brigade:"Mineroducto",    type:"uir",   status:"6-9",  lat:-33.19051, lng:-70.33926},
+  {id:"S1",     name:"Policlínico Pérez Caldera",  brigade:"Policlínico PC", type:"amb",   status:"6-8",  lat:-33.19051, lng:-70.33926},
+  {id:"S2",     name:"Policlínico Las Tórtolas",   brigade:"Policlínico LT", type:"amb",   status:"6-15", lat:-33.14568, lng:-70.69952},
+  {id:"S3",     name:"SPA 220",                    brigade:"SPA 220",        type:"amb",   status:"6-11", lat:-33.14683, lng:-70.28571},
+];
+
+const TYPE_SEEDS = {
+  "INCENDIO":["Amago incendio equipos mineros","Amago incendio vehículos pesados","Amago incendio vehículos livianos","Amago incendio instalaciones industriales","Incendio equipos mineros","Incendio vehículos pesados","Incendio vehículos livianos","Incendio instalaciones","Incendio fuera de las instalaciones","Incendio forestal","Pastizales y/o Basura"],
+  "VEHICULAR":["Choque equipos mineros","Choque vehículos pesados","Choque vehículos livianos","Choque vehículos pesados fuera instalaciones","Choque vehículos livianos fuera instalaciones","Desbarrancamiento equipos mineros","Desbarrancamiento vehículos pesados","Desbarrancamiento vehículos livianos","Desbarrancamiento vehículos pesados fuera instalaciones","Desbarrancamiento vehículos livianos fuera instalaciones","Volcamiento equipo minero","Volcamiento vehículos pesados","Volcamiento vehículos livianos","Volcamiento vehículos pesados fuera instalaciones","Volcamiento vehículos livianos fuera instalaciones","Colisión equipo minero","Colisión vehículos pesados","Colisión vehículos livianos","Colisión vehículos pesados fuera instalaciones","Colisión vehículos livianos fuera instalaciones","Deslizamiento de equipos mineros"],
+  "RESCATE MÉDICO":["Caída mismo nivel","Caída diferente nivel","Derrumbe","Atrapamiento","Fractura abierta","Fractura cerrada","Esguince extremidad superior","Esguince extremidad inferior","Desmayo / Inconsciente","Pérdida de conciencia","Crisis de Pánico / Ansiedad","Golpeado por","PCR","Rescate vertical","Rescate espacio confinados","Atropello","Caída de particular","Encerramiento en ascensor","Corte (brazo, mano, pierna)","Pérdida de memoria","Otros no categorizados"],
+  "HAZMAT":["Derrame de sustancias peligrosas","Fuga de sustancias peligrosas","Incidente con sustancias peligrosas varias"],
+  "SIMULACROS":["Simulacro Documental","Simulacro Proceso","Simulacro Divisional"],
+  "SÍSMICO":["Sismo leve en faena","Sismo moderado con evacuación preventiva","Terremoto grave con daños estructurales"],
+  "METEOROLÓGICO":["Tormenta eléctrica en zona alta","Nevadas intensas que bloquean accesos","Lluvia torrencial que afecta caminos / tranques","Ola de calor que acelera derretimiento de nieve","Viento blanco o ventiscas en zona alta"],
+  "GEOLÓGICO":["Deslizamiento de terreno","Remoción en masa","Falla geotécnica en botaderos","Caída de rocas en zonas de tránsito","Inestabilidad de taludes","Aluvión por deshielo o lluvias intensas"],
+  "AMBIENTAL":["Aumento de material particulado por vientos","Contaminación a cursos de agua","Afectación a flora / fauna"],
+  "OTROS":["Limpieza de rodados / arboleda en rutas OLB","Activación de alarma SPCI","Contacto eléctrico","Desperfecto mecánico rutas G-21, G-245","Desperfecto mecánico ruta STP-OLB","Rescate animal","Olor no determinado","Daño a infraestructura crítica","Interrupción de suministro eléctrico","Crecida de ríos por lluvias intensas","Inundación de instalaciones","Caída de árbol","Otros no categorizados"],
+};
+
+// ════════════════════════════════════════════════
+// 2. FIREBASE INIT
+// ════════════════════════════════════════════════
+let app_fb, db;
+let fbOk = false;
+
+try {
+  app_fb = initializeApp(firebaseConfig);
+  db     = getFirestore(app_fb);
+  fbOk   = true;
+} catch(e) {
+  console.warn("Firebase init failed, running in local demo mode:", e);
+}
+
+// ════════════════════════════════════════════════
+// 3. LOCAL STATE (fallback + working copy)
+// ════════════════════════════════════════════════
+let units       = JSON.parse(JSON.stringify(UNIT_SEEDS));
+let emergencies = [
+  {id:"EMR-001",type:"INCENDIO",subtype:"Amago incendio vehículos pesados",location:"Sector Mina Norte",priority:"alta",status:"active",units:["UIR-M","B1"],notes:"Vehículo detenido, sin víctimas",createdAt:"2025-01-27 08:14",closedAt:null},
+  {id:"EMR-002",type:"RESCATE MÉDICO",subtype:"Fractura abierta",location:"Planta Concentradora",priority:"media",status:"active",units:["S1"],notes:"Trabajador con fractura en brazo derecho",createdAt:"2025-01-27 09:02",closedAt:null},
+  {id:"EMR-003",type:"VEHICULAR",subtype:"Choque vehículos pesados",location:"Ruta G-21 km 34",priority:"alta",status:"resolved",units:["UIR-E","S2"],notes:"Cerrado sin lesionados graves",createdAt:"2025-01-27 06:30",closedAt:"2025-01-27 08:00"},
+  {id:"EMR-004",type:"OTROS",subtype:"Desperfecto mecánico rutas G-21, G-245",location:"Ruta acceso principal",priority:"baja",status:"resolved",units:["UIR-STP"],notes:"Asistencia completada",createdAt:"2025-01-27 07:15",closedAt:"2025-01-27 07:55"},
+  {id:"EMR-005",type:"SÍSMICO",subtype:"Sismo leve en faena",location:"Toda la faena",priority:"media",status:"standby",units:[],notes:"Protocolo activado, sin daños",createdAt:"2025-01-27 05:48",closedAt:null},
+  {id:"EMR-006",type:"HAZMAT",subtype:"Derrame de sustancias peligrosas",location:"Sector Mineroducto km 12",priority:"alta",status:"resolved",units:["UIR-STP","B2"],notes:"Contenido, área aislada",createdAt:"2025-01-24 14:20",closedAt:"2025-01-24 17:30"},
+  {id:"EMR-007",type:"METEOROLÓGICO",subtype:"Tormenta eléctrica en zona alta",location:"Zona Alta / Cumbres",priority:"media",status:"resolved",units:[],notes:"Alerta preventiva emitida",createdAt:"2025-01-22 11:05",closedAt:"2025-01-22 14:00"},
+];
+let emergTypes = Object.entries(TYPE_SEEDS).map(([name,subtypes])=>({name,subtypes}));
+let currentView = "public";
+let currentLayer = "carto";
+
+// ════════════════════════════════════════════════
+// 4. MAP SETUP (Leaflet)
+// ════════════════════════════════════════════════
+const LAYERS = {
+  carto: L.tileLayer(
+    "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+    {attribution:'&copy; <a href="https://carto.com/">CARTO</a>', subdomains:"abcd", maxZoom:19}
+  ),
+  sat: L.tileLayer(
+    "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+    {attribution:'&copy; Esri &mdash; Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP', maxZoom:19}
+  ),
+  street: L.tileLayer(
+    "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+    {attribution:'&copy; OpenStreetMap contributors', maxZoom:19}
+  ),
+};
+
+const map = L.map("map", {
+  center: [-33.25, -70.45],
+  zoom: 10,
+  zoomControl: true,
+  attributionControl: true,
+});
+LAYERS.carto.addTo(map);
+
+// Remove loading overlay once map tiles start loading
+map.on("load", () => { document.getElementById("map-loading").style.display="none"; });
+setTimeout(() => { document.getElementById("map-loading").style.display="none"; }, 1800);
+
+// Base markers
+BASES.forEach(b => {
+  const icon = L.divIcon({
+    className:"",
+    html:`<div class="lm-base">⬡ ${b.name}</div>`,
+    iconAnchor:[0,8],
+  });
+  L.marker([b.lat,b.lng],{icon,zIndexOffset:-100}).addTo(map)
+    .bindPopup(`<div class="pu-name">⬡ ${b.name}</div><div class="pu-row"><span class="pu-key">Tipo</span><span class="pu-val">Base de Operaciones</span></div>`);
+});
+
+// Unit markers
+let unitMarkers = {};
+
+function unitIcon(u) {
+  const s = STATUS_MAP[u.status] || STATUS_MAP["6-10"];
+  const typeLbl = u.type==="bomba"?"🚒":u.type==="uir"?"🚙":"🚑";
+  return L.divIcon({
+    className:"",
+    html:`<div class="lm-unit" style="color:${s.color};border-color:${s.color}">${typeLbl} ${u.id}</div>`,
+    iconAnchor:[24,12],
+  });
+}
+
+function rebuildUnitMarkers() {
+  units.forEach(u => {
+    const lat = u.lat || -33.25;
+    const lng = u.lng || -70.45;
+    if (unitMarkers[u.id]) {
+      unitMarkers[u.id].setLatLng([lat,lng]);
+      unitMarkers[u.id].setIcon(unitIcon(u));
+    } else {
+      const m = L.marker([lat,lng], {icon:unitIcon(u), zIndexOffset:100}).addTo(map);
+      m.on("click", () => openUnitPopup(u.id, m));
+      unitMarkers[u.id] = m;
+    }
+  });
+}
+
+function openUnitPopup(uid, marker) {
+  const u = units.find(x=>x.id===uid); if(!u) return;
+  const s = STATUS_MAP[u.status]||{label:u.status,color:"#6a8ab0"};
+  const typeName = {bomba:"Carro Bomba",uir:"UIR — Camioneta",amb:"Ambulancia"}[u.type]||u.type;
+  const opBtn = currentView==="operator"
+    ? `<button class="btn btn-sm btn-outline" onclick="window.__openStatusChange('${u.id}')">Cambiar Estado</button>` : "";
+  marker.bindPopup(`
+    <div class="pu-name">${u.id} — ${u.brigade}</div>
+    <div class="pu-row"><span class="pu-key">Tipo</span><span class="pu-val">${typeName}</span></div>
+    <div class="pu-row"><span class="pu-key">Brigada</span><span class="pu-val">${u.name}</span></div>
+    <div class="pu-row"><span class="pu-key">Estado</span><span class="pu-val" style="color:${s.color}">${s.label}</span></div>
+    ${u.status==="6-15"&&u.centro?`<div class="pu-row"><span class="pu-key">Centro</span><span class="pu-val">${u.centro}</span></div>`:""}
+    ${u.status==="6-10"&&u.base?`<div class="pu-row"><span class="pu-key">Base</span><span class="pu-val">${u.base}</span></div>`:""}
+    <div class="pu-actions">${opBtn}</div>
+  `).openPopup();
+}
+
+// Emergency blip markers
+let emergMarkers = {};
+
+function rebuildEmergMarkers() {
+  // Remove old
+  Object.values(emergMarkers).forEach(m=>map.removeLayer(m));
+  emergMarkers = {};
+  // Add active
+  emergencies.filter(e=>e.status==="active").forEach((e,i) => {
+    const lat = -33.20 + (i*0.05);
+    const lng = -70.35 + (i*0.04);
+    const icon = L.divIcon({className:"",html:`<div class="lm-emerg"></div>`,iconAnchor:[7,7]});
+    const m = L.marker([lat,lng],{icon,zIndexOffset:200}).addTo(map);
+    m.bindPopup(`<div class="pu-name" style="color:var(--danger)">⚡ ${e.id}</div>
+      <div class="pu-row"><span class="pu-key">Tipo</span><span class="pu-val">${e.type}</span></div>
+      <div class="pu-row"><span class="pu-key">Subtipo</span><span class="pu-val">${e.subtype}</span></div>
+      <div class="pu-row"><span class="pu-key">Lugar</span><span class="pu-val">${e.location}</span></div>
+      <div class="pu-row"><span class="pu-key">Prioridad</span><span class="pu-val" style="color:${e.priority==="alta"?"var(--danger)":e.priority==="media"?"var(--warn)":"var(--ok)"}">${e.priority.toUpperCase()}</span></div>`);
+    emergMarkers[e.id] = m;
+  });
+}
+
+window.setLayer = function(l) {
+  Object.values(LAYERS).forEach(ly=>map.removeLayer(ly));
+  LAYERS[l].addTo(map);
+  currentLayer = l;
+  document.querySelectorAll(".mt-btn").forEach(b=>b.classList.remove("active"));
+  document.getElementById("btn-"+l).classList.add("active");
+};
+
+// ════════════════════════════════════════════════
+// 5. FIREBASE LISTENERS (if connected)
+// ════════════════════════════════════════════════
+function ts() { return serverTimestamp(); }
+
+async function seedIfEmpty() {
+  if(!fbOk) return;
+  try {
+    const snap = await getDocs(collection(db,"units"));
+    if(!snap.empty) return;
+    const batch = writeBatch(db);
+    UNIT_SEEDS.forEach(u=>batch.set(doc(db,"units",u.id),{...u}));
+    Object.entries(TYPE_SEEDS).forEach(([name,subtypes])=>
+      batch.set(doc(db,"emergencyTypes",name),{name,subtypes}));
+    await batch.commit();
+    notify("Firebase seed completado","Base de datos inicializada");
+  } catch(e){ console.warn("seed error",e); }
+}
+
+if(fbOk) {
+  seedIfEmpty();
+
+  onSnapshot(collection(db,"units"), snap => {
+    units = snap.docs.map(d=>({...d.data(),id:d.id}));
+    document.getElementById("conn-dot").className="online";
+    refreshAll();
+  }, () => { document.getElementById("conn-dot").className="offline"; });
+
+  onSnapshot(
+    query(collection(db,"emergencies"),orderBy("createdAt","desc")),
+    snap => {
+      emergencies = snap.docs.map(d=>{
+        const data = d.data();
+        return {
+          ...data, id:d.id,
+          createdAt: data.createdAt?.toDate?.()?.toLocaleString("es-CL",{hour:"2-digit",minute:"2-digit"}) || data.createdAt || "—",
+          closedAt:  data.closedAt?.toDate?.()?.toLocaleString("es-CL",{hour:"2-digit",minute:"2-digit"})  || data.closedAt  || null,
+        };
+      });
+      refreshAll();
+    }, ()=>{}
+  );
+
+  onSnapshot(collection(db,"emergencyTypes"), snap => {
+    emergTypes = snap.docs.map(d=>d.data());
+    refreshAll();
+  }, ()=>{});
+} else {
+  document.getElementById("conn-dot").className="offline";
+  setTimeout(refreshAll, 200);
+}
+
+// ════════════════════════════════════════════════
+// 6. RENDER FUNCTIONS
+// ════════════════════════════════════════════════
+function refreshAll() {
+  renderUnitsList();
+  renderLegend();
+  renderStats();
+  renderActiveBanner();
+  renderHistory();
+  rebuildUnitMarkers();
+  rebuildEmergMarkers();
+  if(currentView==="admin") renderAdmin();
+}
+
+window.setView = function(v) {
+  currentView = v;
+  ["pub","op","adm"].forEach(k=>document.getElementById("tab-"+k).classList.remove("active"));
+  document.getElementById("tab-"+v.substring(0,2)+"b"||"tab-"+{public:"pub",operator:"op",admin:"adm"}[v]).classList.add("active");
+
+  const mapWrap  = document.getElementById("map-wrap");
+  const rpanel   = document.getElementById("rpanel");
+  const sidebar  = document.getElementById("sidebar");
+  const admWrap  = document.getElementById("admin-wrap");
+  const sbOpBtn  = document.getElementById("sb-op-btn");
+  const mapBtns  = document.getElementById("map-layer-btns");
+
+  if(v==="admin"){
+    mapWrap.style.display="none";
+    rpanel.style.display="none";
+    admWrap.classList.add("visible");
+    sidebar.style.display="none";
+    mapBtns.style.display="none";
+    renderAdmin();
+  } else {
+    mapWrap.style.display="";
+    rpanel.style.display="";
+    admWrap.classList.remove("visible");
+    sidebar.style.display="";
+    mapBtns.style.display="";
+    sbOpBtn.style.display = v==="operator"?"":"none";
+    map.invalidateSize();
+  }
+
+  // history depth: public=7d, operator=30d
+  renderHistory();
+  refreshAll();
+};
+
+// Fix tab ids
+document.getElementById("tab-pub").onclick  = ()=>setView("public");
+document.getElementById("tab-op").onclick   = ()=>setView("operator");
+document.getElementById("tab-adm").onclick  = ()=>setView("admin");
+
+function badgeCls(type){ return {bomba:"bb",uir:"bu",amb:"bs"}[type]||"bu"; }
+function spCls(s){ const m=STATUS_MAP[s]; return m?m.cls:"sp-610"; }
+function priorityColor(p){ return {alta:"var(--danger)",media:"var(--warn)",baja:"var(--ok)"}[p]||"var(--text)"; }
+
+function renderUnitsList() {
+  const el = document.getElementById("units-list"); if(!el) return;
+  el.innerHTML = units.map(u=>{
+    const s = STATUS_MAP[u.status]||{label:u.status,color:"#6a8ab0"};
+    return `<div class="unit-row" onclick="window.__openStatusChange('${u.id}',${currentView!=="operator"})">
+      <div class="unit-badge ${badgeCls(u.type)}">${u.id}</div>
+      <div class="unit-name">${u.brigade}</div>
+      ${currentView==="public"
+        ? `<div class="ldot" style="background:${s.color}"></div>`
+        : `<span class="status-pill ${spCls(u.status)}">${u.status}</span>`}
+    </div>`;
+  }).join("");
+}
+
+function renderLegend() {
+  const el = document.getElementById("legend-list"); if(!el) return;
+  el.innerHTML = Object.entries(STATUS_MAP).map(([k,v])=>
+    `<div class="legend-item"><div class="ldot" style="background:${v.color}"></div>${v.label}</div>`
+  ).join("");
+}
+
+function renderStats() {
+  const actives   = emergencies.filter(e=>e.status==="active").length;
+  const avail     = units.filter(u=>u.status==="6-8").length;
+  const onScene   = units.filter(u=>u.status==="6-3").length;
+  const total     = emergencies.length;
+  const colors    = ["var(--danger)","var(--ok)","var(--warn)","var(--text2)"];
+  const labels    = ["Activas","Disponibles","En Lugar","Total"];
+  const vals      = [actives,avail,onScene,total];
+  const html = vals.map((v,i)=>`<div class="stat-box"><div class="stat-n" style="color:${colors[i]}">${v}</div><div class="stat-l">${labels[i]}</div></div>`).join("");
+  ["stat-row","adm-stats"].forEach(id=>{ const el=document.getElementById(id); if(el) el.innerHTML=html; });
+}
+
+function renderActiveBanner() {
+  const el = document.getElementById("active-banner"); if(!el) return;
+  const active = emergencies.filter(e=>e.status==="active");
+  if(active.length===0){
+    el.innerHTML=`<div style="padding:8px 12px;font-size:10px;font-family:var(--mono);color:var(--ok);border:1px solid #00cc6620;background:#00cc6608;margin:8px;border-radius:2px">✓ SIN EMERGENCIAS ACTIVAS</div>`;
+  } else {
+    el.innerHTML=`<div class="banner-active"><div style="font-size:20px">⚠</div><div><div style="font-weight:700;font-size:13px;color:var(--danger)">${active.length} Emergencia(s) Activa(s)</div><div style="font-size:10px;color:var(--text2);margin-top:2px">${active.map(e=>e.type).join(" · ")}</div></div></div>`;
+  }
+}
+
+function renderHistory() {
+  const el = document.getElementById("rp-hist"); if(!el) return;
+  const hdrEl = document.getElementById("rp-hist-hdr");
+  let list = emergencies;
+  if(currentView==="public")   { list=emergencies.slice(0,6); if(hdrEl) hdrEl.textContent="Historial — Últimos 7 días"; }
+  else if(currentView==="operator"){ if(hdrEl) hdrEl.textContent="Historial — 30 días"; }
+  el.innerHTML = list.map(e=>emergCardHTML(e,currentView)).join("");
+}
+
+function emergCardHTML(e, view) {
+  const activeCls = e.status==="active"?"ec-active":e.status==="standby"?"ec-standby":"ec-resolved";
+  const tagCls    = {active:"tag-active",standby:"tag-standby",resolved:"tag-resolved"}[e.status]||"tag-resolved";
+  const tagLbl    = {active:"ACTIVA",standby:"ESPERA",resolved:"CERRADA"}[e.status]||"—";
+  const opActions = view==="operator"&&e.status==="active"
+    ? `<div class="ec-actions"><button class="btn btn-xs btn-outline" onclick="event.stopPropagation();window.__openDispatch('${e.id}')">Despacho</button><button class="btn btn-xs btn-warn" onclick="event.stopPropagation();window.__closeEmerg('${e.id}')">Cerrar</button></div>` : "";
+  return `<div class="emerg-card ${activeCls}" onclick="window.__openEmergDetail('${e.id}')">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:6px">
+      <span class="ec-id">${e.id}</span>
+      <span class="tag ${tagCls}">${tagLbl}</span>
+    </div>
+    <div class="ec-type">${e.type}</div>
+    <div class="ec-sub">${e.subtype}</div>
+    <div class="ec-meta">
+      <span>${e.createdAt||""}</span>
+      <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:130px">${e.location}</span>
+      <span style="color:${priorityColor(e.priority)}">${(e.priority||"").toUpperCase()}</span>
+    </div>
+    <div class="ec-units">${(e.units||[]).map(u=>`<span class="eunit">${u}</span>`).join("")}</div>
+    ${opActions}
+  </div>`;
+}
+
+// ════════════════════════════════════════════════
+// 7. ADMIN VIEW
+// ════════════════════════════════════════════════
+function renderAdmin() {
+  const el = document.getElementById("adm-grid"); if(!el) return;
+  renderStats();
+
+  const byType = {};
+  emergencies.forEach(e=>{ byType[e.type]=(byType[e.type]||0)+1; });
+  const maxV = Math.max(...Object.values(byType),1);
+
+  el.innerHTML = `
+  <!-- Chart -->
+  <div class="admin-card admin-card-full">
+    <div class="ac-title">Estadísticas por Tipo — 2025
+      <button class="btn btn-xs btn-ghost" onclick="exportCSV()">⬇ CSV</button>
+    </div>
+    ${Object.entries(byType).map(([k,v],i)=>`
+      <div class="bar-row">
+        <div class="bar-lbl" title="${k}">${k}</div>
+        <div class="bar-track"><div class="bar-fill" style="width:${Math.round(v/maxV*100)}%;background:${CHART_COLORS[i%CHART_COLORS.length]}28;border-right:3px solid ${CHART_COLORS[i%CHART_COLORS.length]}"></div></div>
+        <div class="bar-val">${v}</div>
+      </div>`).join("")}
+  </div>
+
+  <!-- Units management -->
+  <div class="admin-card">
+    <div class="ac-title">Material Mayor
+      <button class="btn btn-xs btn-outline" onclick="window.__openAddVehicle()">+ Agregar</button>
+    </div>
+    ${units.map(u=>`
+      <div class="arow">
+        <span class="unit-badge ${badgeCls(u.type)}" style="font-size:9px;min-width:48px">${u.id}</span>
+        <span class="arow-name">${u.name}</span>
+        <button class="ibtn" onclick="window.__openEditVehicle('${u.id}')" title="Editar">✎</button>
+        <button class="ibtn del" onclick="window.__deleteVehicle('${u.id}')" title="Eliminar">✕</button>
+      </div>`).join("")}
+  </div>
+
+  <!-- Types management -->
+  <div class="admin-card">
+    <div class="ac-title">Tipos de Emergencia
+      <button class="btn btn-xs btn-outline" onclick="window.__openAddType()">+ Agregar</button>
+    </div>
+    ${emergTypes.map(t=>`
+      <div class="arow">
+        <span class="arow-name">${t.name}</span>
+        <span style="font-size:9px;font-family:var(--mono);color:var(--text3);flex-shrink:0">${(t.subtypes||[]).length}sub</span>
+        <button class="ibtn" onclick="window.__openEditType('${t.name}')" title="Editar subtipos">✎</button>
+        <button class="ibtn del" onclick="window.__deleteType('${t.name}')" title="Eliminar">✕</button>
+      </div>`).join("")}
+  </div>
+
+  <!-- Full history -->
+  <div class="admin-card admin-card-full">
+    <div class="ac-title">Historial Anual — Todas las Emergencias</div>
+    <div style="overflow-x:auto">
+      <table class="htable">
+        <thead><tr><th>ID</th><th>Tipo</th><th>Subtipo</th><th>Lugar</th><th>Unidades</th><th>Prioridad</th><th>Hora</th><th>Estado</th><th>Acciones</th></tr></thead>
+        <tbody>
+          ${emergencies.map(e=>`<tr>
+            <td style="font-family:var(--mono);color:var(--accent);font-size:9px">${e.id}</td>
+            <td>${e.type}</td>
+            <td style="color:var(--text2)">${e.subtype}</td>
+            <td>${e.location}</td>
+            <td>${(e.units||[]).map(u=>`<span class="eunit">${u}</span>`).join(" ")||"—"}</td>
+            <td style="color:${priorityColor(e.priority)};font-size:10px;font-family:var(--mono)">${(e.priority||"").toUpperCase()}</td>
+            <td style="font-family:var(--mono);font-size:9px">${e.createdAt||"—"}</td>
+            <td><span class="tag ${e.status==="active"?"tag-active":e.status==="standby"?"tag-standby":"tag-resolved"}" style="font-size:8px">${{active:"ACTIVA",standby:"ESPERA",resolved:"CERRADA"}[e.status]||"—"}</span></td>
+            <td>
+              <div style="display:flex;gap:3px">
+                <button class="btn btn-xs btn-ghost" onclick="window.__openEmergEdit('${e.id}')" title="Editar">✎</button>
+                ${e.status!=="active"
+                  ?`<button class="btn btn-xs btn-ok" onclick="window.__reopenEmerg('${e.id}')" title="Reabrir">↺</button>`
+                  :`<button class="btn btn-xs btn-warn" onclick="window.__closeEmerg('${e.id}')" title="Cerrar">✕</button>`}
+              </div>
+            </td>
+          </tr>`).join("")}
+        </tbody>
+      </table>
+    </div>
+  </div>`;
+}
+
+// ════════════════════════════════════════════════
+// 8. MODAL HELPERS
+// ════════════════════════════════════════════════
+function showModal(title, body, footer) {
+  document.getElementById("modal-root").innerHTML=`
+    <div class="modal-ov" id="modal-ov" onclick="if(event.target.id==='modal-ov')closeModal()">
+      <div class="modal">
+        <div class="modal-hdr">
+          <span class="modal-title">${title}</span>
+          <button class="xbtn" onclick="closeModal()">✕</button>
+        </div>
+        <div class="modal-body">${body}</div>
+        <div class="modal-ftr">${footer}</div>
+      </div>
+    </div>`;
+}
+window.closeModal = function(){ document.getElementById("modal-root").innerHTML=""; };
+
+// ════════════════════════════════════════════════
+// 9. STATUS CHANGE MODAL
+// ════════════════════════════════════════════════
+window.__openStatusChange = function(uid, readOnly=false) {
+  const u = units.find(x=>x.id===uid); if(!u) return;
+  if(readOnly) return;
+  const s = STATUS_MAP[u.status]||{label:u.status,color:"#6a8ab0"};
+  const typeName = {bomba:"Carro Bomba",uir:"UIR — Camioneta",amb:"Ambulancia"}[u.type]||u.type;
+
+  // Extra fields for 6-10 and 6-15
+  const extraSections = `
+    <div id="extra-610" style="display:none" class="fg">
+      <label class="fl">Base destino (6-10)</label>
+      <select class="fc" id="sel-base">
+        <option value="">— Base Origen —</option>
+        ${BASES.map(b=>`<option value="${b.name}">${b.name}</option>`).join("")}
+      </select>
+    </div>
+    <div id="extra-615" style="display:none" class="fg">
+      <label class="fl">Centro Asistencial (6-15)</label>
+      <select class="fc" id="sel-centro">
+        <option value="">— Seleccionar centro —</option>
+        ${CENTROS.map(c=>`<option value="${c}">${c}</option>`).join("")}
+      </select>
+    </div>`;
+
+  showModal(
+    "CAMBIAR ESTADO — "+u.id,
+    `<div style="background:var(--bg3);border:1px solid var(--border);border-radius:3px;padding:9px;margin-bottom:12px;font-size:12px">
+      <strong>${u.id}</strong> · ${u.name} · <span style="color:var(--text2)">${typeName}</span><br>
+      <span style="font-size:10px;color:${s.color}">Estado actual: ${s.label}</span>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:12px">
+      ${Object.entries(STATUS_MAP).map(([k,v])=>`
+        <button class="btn btn-ghost btn-sm" style="${u.status===k?`background:${v.color}18;border-color:${v.color};color:${v.color}`:`color:${v.color}`}"
+          onclick="selectStatus('${uid}','${k}')">${v.label}</button>`).join("")}
+    </div>
+    ${extraSections}`,
+    `<button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
+     <button class="btn btn-primary" onclick="confirmStatus('${uid}')">CONFIRMAR</button>`
+  );
+};
+
+window.selectStatus = function(uid, code) {
+  document.querySelectorAll(".modal-body .btn-ghost").forEach(b=>{
+    const s = STATUS_MAP[b.textContent.trim().split(" ")[0]];
+  });
+  // highlight selected
+  document.querySelectorAll(".modal-body button[onclick^='selectStatus']").forEach(b=>{
+    const k = b.getAttribute("onclick").match(/'([^']+)'\s*\)$/)?.[1];
+    if(!k) return;
+    const v = STATUS_MAP[k]||{color:"#6a8ab0"};
+    if(k===code) { b.style.background=v.color+"28"; b.style.borderColor=v.color; b.style.color=v.color; }
+    else { b.style.background="transparent"; b.style.borderColor="var(--border2)"; b.style.color=v.color; }
+  });
+  document.getElementById("extra-610").style.display = code==="6-10"?"":"none";
+  document.getElementById("extra-615").style.display = code==="6-15"?"":"none";
+  document.getElementById("modal-root").dataset.pendingStatus = code;
+};
+
+window.confirmStatus = async function(uid) {
+  const code = document.getElementById("modal-root").dataset.pendingStatus;
+  if(!code){ notify("Selecciona un estado primero","","var(--warn)"); return; }
+  const extra = {};
+  if(code==="6-10") { extra.base   = document.getElementById("sel-base")?.value||""; }
+  if(code==="6-15") { extra.centro = document.getElementById("sel-centro")?.value||""; }
+  // local
+  const u = units.find(x=>x.id===uid); if(!u) return;
+  u.status=code; if(extra.base) u.base=extra.base; if(extra.centro) u.centro=extra.centro;
+  // firebase
+  if(fbOk) try { await updateDoc(doc(db,"units",uid),{status:code,...extra}); } catch(e){}
+  closeModal();
+  notify(`${uid} → ${STATUS_MAP[code]?.label||code}`,extra.base||extra.centro||"");
+  refreshAll();
+};
+
+// ════════════════════════════════════════════════
+// 10. NEW EMERGENCY
+// ════════════════════════════════════════════════
+function getTypeSubs(typeName) {
+  const t = emergTypes.find(x=>x.name===typeName);
+  return t ? t.subtypes : (TYPE_SEEDS[typeName]||[]);
+}
+
+window.openNewEmerg = function() {
+  const firstType = emergTypes[0]?.name || Object.keys(TYPE_SEEDS)[0];
+  showModal(
+    "NUEVA EMERGENCIA",
+    `<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="fg">
+        <label class="fl">Tipo de Emergencia</label>
+        <select class="fc" id="em-type" onchange="refreshSubtypes()">
+          ${emergTypes.map(t=>`<option>${t.name}</option>`).join("")}
+        </select>
+      </div>
+      <div class="fg">
+        <label class="fl">Subtipo</label>
+        <select class="fc" id="em-sub">
+          ${getTypeSubs(firstType).map(s=>`<option>${s}</option>`).join("")}
+        </select>
+      </div>
+    </div>
+    <div class="fg"><label class="fl">Ubicación / Sector</label>
+      <input class="fc" id="em-loc" placeholder="Ej: Sector Mina Norte, Ruta G-21 km 34…"></div>
+    <div class="fg"><label class="fl">Prioridad</label>
+      <select class="fc" id="em-pri">
+        <option value="alta">Alta — Riesgo inmediato</option>
+        <option value="media" selected>Media — Atención prioritaria</option>
+        <option value="baja">Baja — Sin urgencia inmediata</option>
+      </select></div>
+    <label class="fl">Asignar Material Mayor</label>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-bottom:12px">
+      ${units.map(u=>`
+        <label style="display:flex;align-items:center;gap:5px;cursor:pointer;padding:4px 6px;border:1px solid var(--border);border-radius:2px;font-size:10px;transition:border-color .12s" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
+          <input type="checkbox" value="${u.id}" id="eu-${u.id}" style="accent-color:var(--accent)">
+          <span class="unit-badge ${badgeCls(u.type)}" style="font-size:8px;min-width:38px;padding:1px 3px">${u.id}</span>
+        </label>`).join("")}
+    </div>
+    <div class="fg"><label class="fl">Notas iniciales</label>
+      <textarea class="fc" id="em-notes" rows="3" placeholder="Descripción de la emergencia…"></textarea></div>`,
+    `<button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
+     <button class="btn btn-danger" onclick="submitNewEmerg()">⚡ CREAR EMERGENCIA</button>`
+  );
+};
+
+window.refreshSubtypes = function() {
+  const t = document.getElementById("em-type")?.value;
+  const s = document.getElementById("em-sub"); if(!s||!t) return;
+  s.innerHTML = getTypeSubs(t).map(x=>`<option>${x}</option>`).join("");
+};
+
+window.submitNewEmerg = async function() {
+  const type     = document.getElementById("em-type")?.value||"OTROS";
+  const subtype  = document.getElementById("em-sub")?.value||"";
+  const location = document.getElementById("em-loc")?.value||"Sin especificar";
+  const priority = document.getElementById("em-pri")?.value||"media";
+  const notes    = document.getElementById("em-notes")?.value||"";
+  const unitsList= units.filter(u=>document.getElementById("eu-"+u.id)?.checked).map(u=>u.id);
+  const now      = new Date();
+  const timeStr  = now.toLocaleString("es-CL",{hour:"2-digit",minute:"2-digit"});
+  const id       = "EMR-"+String(emergencies.length+1).padStart(3,"0");
+
+  const emerg = {id,type,subtype,location,priority,status:"active",units:unitsList,notes,createdAt:timeStr,closedAt:null};
+  emergencies.unshift(emerg);
+  unitsList.forEach(uid=>{ const u=units.find(x=>x.id===uid); if(u) u.status="6-3"; });
+
+  if(fbOk) {
+    try {
+      await setDoc(doc(db,"emergencies",id),{...emerg,createdAt:ts(),closedAt:null});
+      for(const uid of unitsList) await updateDoc(doc(db,"units",uid),{status:"6-3"});
+    } catch(e){ console.warn(e); }
+  }
+  closeModal();
+  notify(`⚡ Emergencia ${id} creada`,type,"var(--danger)");
+  refreshAll();
+};
+
+// ════════════════════════════════════════════════
+// 11. DISPATCH MODAL
+// ════════════════════════════════════════════════
+window.__openDispatch = function(eid) {
+  const e = emergencies.find(x=>x.id===eid); if(!e) return;
+  showModal(
+    "DESPACHO — "+e.id,
+    `<div style="background:var(--bg3);border:1px solid var(--border);border-left:3px solid var(--danger);padding:9px;border-radius:3px;margin-bottom:12px">
+      <div style="font-weight:700;font-size:13px">${e.type}</div>
+      <div style="font-size:11px;color:var(--text2);margin:2px 0">${e.subtype}</div>
+      <div style="font-size:10px;font-family:var(--mono);color:var(--text3)">${e.location}</div>
+    </div>
+    <label class="fl">Unidades asignadas</label>
+    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:5px;margin-bottom:12px">
+      ${units.map(u=>`
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:5px 7px;border:1px solid var(--border);border-radius:2px;font-size:11px">
+          <input type="checkbox" value="${u.id}" id="dp-${u.id}" ${(e.units||[]).includes(u.id)?"checked":""} style="accent-color:var(--accent)">
+          <span class="unit-badge ${badgeCls(u.type)}" style="font-size:9px;min-width:44px">${u.id}</span>
+          <span style="font-size:10px;color:${STATUS_MAP[u.status]?.color||"#6a8ab0"}">${u.status}</span>
+        </label>`).join("")}
+    </div>
+    <div class="fg"><label class="fl">Recursos externos / Notas</label>
+      <textarea class="fc" id="dp-notes" rows="3">${e.notes||""}</textarea></div>`,
+    `<button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
+     <button class="btn btn-primary" onclick="saveDispatch('${eid}')">ACTUALIZAR DESPACHO</button>`
+  );
+};
+
+window.saveDispatch = async function(eid) {
+  const e = emergencies.find(x=>x.id===eid); if(!e) return;
+  const newUnits = units.filter(u=>document.getElementById("dp-"+u.id)?.checked).map(u=>u.id);
+  const notes    = document.getElementById("dp-notes")?.value||e.notes;
+  (e.units||[]).forEach(uid=>{ const u=units.find(x=>x.id===uid); if(u&&!newUnits.includes(uid)) u.status="6-9"; });
+  newUnits.forEach(uid=>{ const u=units.find(x=>x.id===uid); if(u) u.status="6-3"; });
+  e.units=newUnits; e.notes=notes;
+  if(fbOk) try { await updateDoc(doc(db,"emergencies",eid),{units:newUnits,notes}); for(const uid of newUnits) await updateDoc(doc(db,"units",uid),{status:"6-3"}); } catch(err){}
+  closeModal();
+  notify("Despacho actualizado",""+eid);
+  refreshAll();
+};
+
+// ════════════════════════════════════════════════
+// 12. CLOSE / REOPEN EMERGENCY
+// ════════════════════════════════════════════════
+window.__closeEmerg = async function(eid) {
+  if(!confirm(`¿Cerrar emergencia ${eid}?`)) return;
+  const e = emergencies.find(x=>x.id===eid); if(!e) return;
+  e.status="resolved"; e.closedAt=new Date().toLocaleString("es-CL",{hour:"2-digit",minute:"2-digit"});
+  (e.units||[]).forEach(uid=>{ const u=units.find(x=>x.id===uid); if(u) u.status="6-9"; });
+  if(fbOk) try { await updateDoc(doc(db,"emergencies",eid),{status:"resolved",closedAt:ts()}); } catch(err){}
+  notify(`✓ ${eid} cerrada`,"");
+  refreshAll();
+};
+
+window.__reopenEmerg = async function(eid) {
+  const e = emergencies.find(x=>x.id===eid); if(!e) return;
+  e.status="active"; e.closedAt=null;
+  if(fbOk) try { await updateDoc(doc(db,"emergencies",eid),{status:"active",closedAt:null}); } catch(err){}
+  notify(`↺ ${eid} reabierta`,"","var(--warn)");
+  refreshAll();
+};
+
+// ════════════════════════════════════════════════
+// 13. EMERGENCY DETAIL & EDIT
+// ════════════════════════════════════════════════
+window.__openEmergDetail = function(eid) {
+  const e = emergencies.find(x=>x.id===eid); if(!e) return;
+  const rows = [
+    ["Tipo",e.type],["Subtipo",e.subtype],["Ubicación",e.location],
+    ["Prioridad",`<span style="color:${priorityColor(e.priority)}">${(e.priority||"").toUpperCase()}</span>`],
+    ["Creada",e.createdAt||"—"],["Cerrada",e.closedAt||"—"],["Notas",e.notes||"—"]
+  ];
+  showModal(
+    "EMERGENCIA — "+e.id,
+    `<table style="width:100%;border-collapse:collapse">
+      ${rows.map(([k,v])=>`<tr><td style="color:var(--text3);font-size:10px;font-family:var(--mono);padding:6px 0;width:80px;vertical-align:top">${k}</td><td style="font-size:12px;padding:6px 0">${v}</td></tr>`).join("")}
+      <tr><td style="color:var(--text3);font-size:10px;font-family:var(--mono);padding:6px 0;vertical-align:top">Unidades</td>
+        <td style="padding:6px 0">${(e.units||[]).map(u=>`<span class="eunit">${u}</span>`).join(" ")||"Ninguna"}</td></tr>
+    </table>`,
+    `<button class="btn btn-ghost" onclick="closeModal()">Cerrar</button>
+     ${currentView!=="public"?`<button class="btn btn-outline" onclick="closeModal();window.__openEmergEdit('${eid}')">Editar</button>`:""}
+     ${e.status==="active"&&currentView==="operator"?`<button class="btn btn-primary" onclick="closeModal();window.__openDispatch('${eid}')">Despacho</button>`:""}
+    `
+  );
+};
+
+window.__openEmergEdit = function(eid) {
+  const e = emergencies.find(x=>x.id===eid); if(!e) return;
+  showModal(
+    "EDITAR EMERGENCIA — "+e.id,
+    `<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="fg"><label class="fl">Tipo</label>
+        <select class="fc" id="ee-type" onchange="refreshEeSubtypes()">
+          ${emergTypes.map(t=>`<option ${t.name===e.type?"selected":""}>${t.name}</option>`).join("")}
+        </select></div>
+      <div class="fg"><label class="fl">Subtipo</label>
+        <select class="fc" id="ee-sub">
+          ${getTypeSubs(e.type).map(s=>`<option ${s===e.subtype?"selected":""}>${s}</option>`).join("")}
+        </select></div>
+    </div>
+    <div class="fg"><label class="fl">Ubicación</label>
+      <input class="fc" id="ee-loc" value="${e.location}"></div>
+    <div class="fg"><label class="fl">Prioridad</label>
+      <select class="fc" id="ee-pri">
+        <option value="alta" ${e.priority==="alta"?"selected":""}>Alta</option>
+        <option value="media" ${e.priority==="media"?"selected":""}>Media</option>
+        <option value="baja" ${e.priority==="baja"?"selected":""}>Baja</option>
+      </select></div>
+    <div class="fg"><label class="fl">Estado</label>
+      <select class="fc" id="ee-status">
+        <option value="active" ${e.status==="active"?"selected":""}>Activa</option>
+        <option value="standby" ${e.status==="standby"?"selected":""}>En espera</option>
+        <option value="resolved" ${e.status==="resolved"?"selected":""}>Cerrada</option>
+      </select></div>
+    <div class="fg"><label class="fl">Notas</label>
+      <textarea class="fc" id="ee-notes" rows="3">${e.notes||""}</textarea></div>`,
+    `<button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
+     <button class="btn btn-primary" onclick="saveEmergEdit('${eid}')">GUARDAR CAMBIOS</button>`
+  );
+};
+
+window.refreshEeSubtypes = function(){
+  const t = document.getElementById("ee-type")?.value;
+  const s = document.getElementById("ee-sub"); if(!s||!t) return;
+  s.innerHTML = getTypeSubs(t).map(x=>`<option>${x}</option>`).join("");
+};
+
+window.saveEmergEdit = async function(eid) {
+  const e = emergencies.find(x=>x.id===eid); if(!e) return;
+  e.type     = document.getElementById("ee-type")?.value||e.type;
+  e.subtype  = document.getElementById("ee-sub")?.value||e.subtype;
+  e.location = document.getElementById("ee-loc")?.value||e.location;
+  e.priority = document.getElementById("ee-pri")?.value||e.priority;
+  e.status   = document.getElementById("ee-status")?.value||e.status;
+  e.notes    = document.getElementById("ee-notes")?.value||e.notes;
+  if(fbOk) try { await updateDoc(doc(db,"emergencies",eid),{type:e.type,subtype:e.subtype,location:e.location,priority:e.priority,status:e.status,notes:e.notes}); } catch(err){}
+  closeModal();
+  notify(`✓ ${eid} actualizada`,"");
+  refreshAll();
+};
+
+// ════════════════════════════════════════════════
+// 14. VEHICLE ADMIN
+// ════════════════════════════════════════════════
+window.__openAddVehicle = function(){
+  showModal("AGREGAR MATERIAL MAYOR",
+    `<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="fg"><label class="fl">ID / Identificador</label><input class="fc" id="nv-id" placeholder="Ej: B3"></div>
+      <div class="fg"><label class="fl">Brigada / Nombre</label><input class="fc" id="nv-name" placeholder="Nombre brigada"></div>
+    </div>
+    <div class="fg"><label class="fl">Tipo</label>
+      <select class="fc" id="nv-type"><option value="bomba">Carro Bomba</option><option value="uir">UIR — Camioneta</option><option value="amb">Ambulancia</option></select></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="fg"><label class="fl">Latitud</label><input class="fc" id="nv-lat" placeholder="-33.25"></div>
+      <div class="fg"><label class="fl">Longitud</label><input class="fc" id="nv-lng" placeholder="-70.45"></div>
+    </div>`,
+    `<button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
+     <button class="btn btn-primary" onclick="saveAddVehicle()">AGREGAR</button>`
+  );
+};
+window.saveAddVehicle = async function(){
+  const id=document.getElementById("nv-id")?.value?.trim();
+  const name=document.getElementById("nv-name")?.value?.trim();
+  const type=document.getElementById("nv-type")?.value;
+  const lat=parseFloat(document.getElementById("nv-lat")?.value)||(-33.25);
+  const lng=parseFloat(document.getElementById("nv-lng")?.value)||(-70.45);
+  if(!id||!name){notify("Completa ID y nombre","","var(--warn)");return;}
+  if(units.find(u=>u.id===id)){notify("Ya existe esa unidad","","var(--warn)");return;}
+  const u={id,name,brigade:name,type,status:"6-10",lat,lng};
+  units.push(u);
+  if(fbOk) try{await setDoc(doc(db,"units",id),u);}catch(e){}
+  closeModal();notify(`✓ Unidad ${id} agregada`,"");refreshAll();
+};
+window.__openEditVehicle = function(uid){
+  const u=units.find(x=>x.id===uid);if(!u)return;
+  showModal("EDITAR — "+u.id,
+    `<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="fg"><label class="fl">ID</label><input class="fc" id="ev-id" value="${u.id}"></div>
+      <div class="fg"><label class="fl">Nombre / Brigada</label><input class="fc" id="ev-name" value="${u.name}"></div>
+    </div>
+    <div class="fg"><label class="fl">Tipo</label>
+      <select class="fc" id="ev-type"><option value="bomba" ${u.type==="bomba"?"selected":""}>Carro Bomba</option><option value="uir" ${u.type==="uir"?"selected":""}>UIR</option><option value="amb" ${u.type==="amb"?"selected":""}>Ambulancia</option></select></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="fg"><label class="fl">Latitud</label><input class="fc" id="ev-lat" value="${u.lat||""}"></div>
+      <div class="fg"><label class="fl">Longitud</label><input class="fc" id="ev-lng" value="${u.lng||""}"></div>
+    </div>`,
+    `<button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
+     <button class="btn btn-primary" onclick="saveEditVehicle('${uid}')">GUARDAR</button>`
+  );
+};
+window.saveEditVehicle = async function(uid){
+  const u=units.find(x=>x.id===uid);if(!u)return;
+  u.id  =document.getElementById("ev-id")?.value||u.id;
+  u.name=document.getElementById("ev-name")?.value||u.name;
+  u.brigade=u.name;
+  u.type=document.getElementById("ev-type")?.value||u.type;
+  u.lat =parseFloat(document.getElementById("ev-lat")?.value)||u.lat;
+  u.lng =parseFloat(document.getElementById("ev-lng")?.value)||u.lng;
+  if(fbOk) try{await setDoc(doc(db,"units",u.id),u,{merge:true});}catch(e){}
+  closeModal();notify(`✓ ${u.id} actualizado`,"");refreshAll();
+};
+window.__deleteVehicle = async function(uid){
+  if(!confirm(`¿Eliminar ${uid}?`))return;
+  units=units.filter(u=>u.id!==uid);
+  if(unitMarkers[uid]){map.removeLayer(unitMarkers[uid]);delete unitMarkers[uid];}
+  if(fbOk) try{await deleteDoc(doc(db,"units",uid));}catch(e){}
+  notify(`Unidad ${uid} eliminada`,"","var(--warn)");refreshAll();
+};
+
+// ════════════════════════════════════════════════
+// 15. TYPE ADMIN
+// ════════════════════════════════════════════════
+window.__openAddType = function(){
+  showModal("AGREGAR TIPO DE EMERGENCIA",
+    `<div class="fg"><label class="fl">Nombre del tipo</label><input class="fc" id="nt-name" placeholder="Ej: ELÉCTRICO"></div>
+     <div class="fg"><label class="fl">Subtipos (uno por línea)</label><textarea class="fc" id="nt-subs" rows="7" placeholder="Subtipo A&#10;Subtipo B…"></textarea></div>`,
+    `<button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
+     <button class="btn btn-primary" onclick="saveAddType()">AGREGAR</button>`
+  );
+};
+window.saveAddType = async function(){
+  const name=(document.getElementById("nt-name")?.value||"").trim().toUpperCase();
+  if(!name){notify("Ingresa un nombre","","var(--warn)");return;}
+  const subtypes=(document.getElementById("nt-subs")?.value||"").split("\n").map(s=>s.trim()).filter(Boolean);
+  emergTypes.push({name,subtypes});
+  if(fbOk) try{await setDoc(doc(db,"emergencyTypes",name),{name,subtypes});}catch(e){}
+  closeModal();notify(`✓ Tipo ${name} agregado`,"");refreshAll();
+};
+window.__openEditType = function(tname){
+  const t=emergTypes.find(x=>x.name===tname);if(!t)return;
+  showModal("EDITAR SUBTIPOS — "+tname,
+    `<div class="fg"><label class="fl">Subtipos (uno por línea)</label><textarea class="fc" id="et-subs" rows="12">${(t.subtypes||[]).join("\n")}</textarea></div>`,
+    `<button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
+     <button class="btn btn-primary" onclick="saveEditType('${tname}')">GUARDAR</button>`
+  );
+};
+window.saveEditType = async function(tname){
+  const t=emergTypes.find(x=>x.name===tname);if(!t)return;
+  t.subtypes=(document.getElementById("et-subs")?.value||"").split("\n").map(s=>s.trim()).filter(Boolean);
+  if(fbOk) try{await updateDoc(doc(db,"emergencyTypes",tname),{subtypes:t.subtypes});}catch(e){}
+  closeModal();notify(`✓ Subtipos de ${tname} actualizados`,"");refreshAll();
+};
+window.__deleteType = async function(tname){
+  if(!confirm(`¿Eliminar tipo "${tname}"?`))return;
+  emergTypes=emergTypes.filter(t=>t.name!==tname);
+  if(fbOk) try{await deleteDoc(doc(db,"emergencyTypes",tname));}catch(e){}
+  notify(`Tipo ${tname} eliminado`,"","var(--warn)");refreshAll();
+};
+
+// ════════════════════════════════════════════════
+// 16. CSV EXPORT
+// ════════════════════════════════════════════════
+window.exportCSV = function(){
+  const h=["ID","Tipo","Subtipo","Ubicación","Unidades","Prioridad","Creada","Cerrada","Estado","Notas"];
+  const rows=emergencies.map(e=>[e.id,e.type,e.subtype,e.location,(e.units||[]).join(";"),e.priority,e.createdAt||"",e.closedAt||"",e.status,e.notes||""]);
+  const csv=[h,...rows].map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(",")).join("\n");
+  const a=document.createElement("a");
+  a.href="data:text/csv;charset=utf-8,\uFEFF"+encodeURIComponent(csv);
+  a.download=`CAD_Historial_${new Date().getFullYear()}.csv`;
+  a.click();
+  notify("Exportando CSV…","");
+};
+
+// ════════════════════════════════════════════════
+// 17. NOTIFICATIONS
+// ════════════════════════════════════════════════
+function notify(msg, sub="", borderColor="var(--accent)") {
+  const stack=document.getElementById("notif-stack");
+  const n=document.createElement("div");
+  n.className="notif";
+  n.style.borderLeftColor=borderColor;
+  n.innerHTML=`<div class="notif-sub">SISTEMA CAD · ${new Date().toLocaleTimeString("es-CL",{hour:"2-digit",minute:"2-digit"})}</div>${msg}${sub?`<div style="font-size:10px;color:var(--text2);margin-top:2px">${sub}</div>`:""}`;
+  stack.appendChild(n);
+  setTimeout(()=>{n.classList.add("notif-fade");setTimeout(()=>n.remove(),320);},3200);
+}
+
+// ════════════════════════════════════════════════
+// 18. CLOCK
+// ════════════════════════════════════════════════
+function updateClock(){
+  const n=new Date();
+  document.getElementById("clock").textContent=
+    n.getHours().toString().padStart(2,"0")+":"+
+    n.getMinutes().toString().padStart(2,"0")+":"+
+    n.getSeconds().toString().padStart(2,"0");
+}
+setInterval(updateClock,1000); updateClock();
+
+// ════════════════════════════════════════════════
+// 19. BOOT
+// ════════════════════════════════════════════════
+setView("public");
+
+</script>
+</body>
+</html>
