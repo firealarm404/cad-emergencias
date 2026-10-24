@@ -201,7 +201,14 @@ window.addEventListener('storage',()=>{if(me){load();render()}});
 load();render();
 </script><script type="module">
 /* ===== FIREBASE: pegue aquí su firebaseConfig (ver instrucciones). Si projectId está vacío, la app usa solo el navegador. ===== */
-const cfg={apiKey:"",authDomain:"",projectId:"",appId:""};
+const firebaseConfig = {
+  apiKey: "AIzaSyB8HzQLbwEpOXG45GoBOZcdpg6K5ZSV7jQ",
+  authDomain: "cad-emergencias-81868.firebaseapp.com",
+  projectId: "cad-emergencias-81868",
+  storageBucket: "cad-emergencias-81868.firebasestorage.app",
+  messagingSenderId: "931365676119",
+  appId: "1:931365676119:web:17f70575787b2ca14eaf12"
+};
 import {initializeApp} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {getFirestore,doc,setDoc,onSnapshot} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import {getAuth,signInAnonymously} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
