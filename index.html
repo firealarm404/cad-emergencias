@@ -232,7 +232,7 @@ const br=S.points.filter(p=>/brigada/i.test(p.f));if(br.length){S.bases=br.map((
 S.points.filter(p=>/policl/i.test(p.f)).forEach(p=>{if(!S.centros.some(c=>c.n==p.n))S.centros.push({id:uid(),n:p.n,t:'Interno'})});
 LSIG='';LMFIT=1;if(!quiet)log(`Mapa cargado: ${S.points.length} puntos, ${S.lines.length} rutas, ${S.polys.length} áreas`)}
 async function impKml(f){if(!f)return;let t;try{if(/\.kmz$/i.test(f.name)){const z=await JSZip.loadAsync(f),k=Object.keys(z.files).find(n=>/\.kml$/i.test(n));t=await z.files[k].async('string')}else t=await f.text()}catch(e){return alert('No se pudo leer el archivo')}
-const g=parseKml(t);if(!g.points.length)return alert('No se encontraron puntos en el archivo');applyGeo(g);save();render()}
+const g=parseKml(t);if(!g.points.length)return alert('No se encontraron puntos en el archivo');const cur=JSON.stringify(S).length,old=JSON.stringify([S.points,S.lines,S.polys]).length,tot=Math.round(cur-old+JSON.stringify(g).length*1.15);if(tot>950000)return alert(`El archivo es demasiado grande para el almacenamiento actual (aprox. ${Math.round(tot/1024)} KB de 1.024 KB). Reduzca puntos o simplifique las rutas en Google Earth.`);if(tot>700000&&!confirm(`Atención: los datos quedarían en aprox. ${Math.round(tot/1024)} KB de 1.024 KB disponibles. ¿Importar de todos modos?`))return;applyGeo(g);save();render()}
 function loadDefaultKml(){applyGeo(KML_DEFAULT);save();render()}
 /* ===== v2: animación de unidades, analítica, informe, bitácora paginada, wallboard solo lectura, imágenes ===== */
 const isAmb=u=>/ambul/i.test((u&&u.t)||'');
@@ -349,9 +349,9 @@ const ymd=t=>{const d=new Date(t);return d.getFullYear()+'-'+String(d.getMonth()
 MENU.admin.push('importar');MENU.super.splice(MENU.super.indexOf('informe'),0,'importar');LAB.importar='Importar Excel';
 /* 2. Notas en emergencia activa */
 let OPEN=null;
-function emTable(){const a=act();let h=a.length?`<div class="tw"><table><tr><th>#</th><th>Emergencia</th><th>Ubicación</th><th>Prio.</th><th>Hora</th><th></th></tr>${a.map(e=>`<tr><td>${e.n}</td><td>${esc(e.type)}<br><span class="mu">${esc(e.sub)}</span></td><td>${esc(e.loc.n)}</td><td><span class="tag ${e.pri}">${e.pri}</span></td><td>${fmt(e.t)}</td><td><button onclick="OPEN='${e.id}';render()">Abrir${(e.notes||[]).length?' ('+e.notes.length+')':''}</button> <button onclick="closeEm('${e.id}')">Cerrar</button></td></tr>`).join('')}</table></div>`:'<p class="mu">Sin emergencias activas.</p>';
+function emTable(){const a=act();let h=a.length?`<div class="tw"><table><tr><th>#</th><th>Emergencia</th><th>Ubicación</th><th>Prio.</th><th>Hora</th><th></th></tr>${a.map(e=>`<tr><td>${e.n}</td><td>${esc(e.type)}<br><span class="mu">${esc(e.sub)}</span></td><td>${esc(e.loc.n)}</td><td><span class="tag ${e.pri}">${e.pri}</span></td><td>${fmt(e.t)}</td><td><button onclick="OPEN='${e.id}';render()">Abrir${(e.notes||[]).length?' ('+e.notes.length+')':''}</button> <button onclick="copyWa('${e.id}',this)" title="Copiar resumen para WhatsApp">📋 Copiar</button> <button onclick="closeEm('${e.id}')">Cerrar</button></td></tr>`).join('')}</table></div>`:'<p class="mu">Sin emergencias activas.</p>';
 const o=OPEN&&a.find(x=>x.id==OPEN);return h+(o?noteEd(o):'')}
-function noteEd(e){return`<div class="card" style="margin-top:12px;border:2px solid var(--ac)"><h3 style="color:var(--tx)">Emergencia #${e.n} · ${esc(e.type)}${e.sub?' / '+esc(e.sub):''}</h3><p>${esc(e.loc.n)} · ${fmt(e.t)}<br><span class="mu">${esc(e.desc||'')}</span></p><label>Notas (se muestran en el wallboard)</label>${(e.notes||[]).slice().reverse().map(n=>`<div style="border-left:3px solid var(--ac);padding:2px 8px;margin:6px 0"><span class="mu">${tm(n.t)} · ${esc(n.u)}</span><br>${esc(n.m)}</div>`).join('')||'<p class="mu">Aún no hay notas.</p>'}<textarea id="nt" rows="2" placeholder="Ej: Se despacha Bomberos de Los Andes; amago controlado"></textarea><p class="row"><button class="pri" onclick="addNote('${e.id}')">Agregar nota</button><button onclick="OPEN=null;render()">Cerrar panel</button></p></div>`}
+function noteEd(e){return`<div class="card" style="margin-top:12px;border:2px solid var(--ac)"><h3 style="color:var(--tx)">Emergencia #${e.n} · ${esc(e.type)}${e.sub?' / '+esc(e.sub):''}</h3><p>${esc(e.loc.n)} · ${fmt(e.t)}<br><span class="mu">${esc(e.desc||'')}</span></p><label>Notas (se muestran en el wallboard)</label>${(e.notes||[]).slice().reverse().map(n=>`<div style="border-left:3px solid var(--ac);padding:2px 8px;margin:6px 0"><span class="mu">${tm(n.t)} · ${esc(n.u)}</span><br>${esc(n.m)}</div>`).join('')||'<p class="mu">Aún no hay notas.</p>'}<textarea id="nt" rows="2" placeholder="Ej: Se despacha Bomberos de Los Andes; amago controlado"></textarea><p class="row"><button class="pri" onclick="addNote('${e.id}')">Agregar nota</button><button onclick="copyWa('${e.id}',this)">📋 Copiar para WhatsApp</button><button onclick="sendWa('${e.id}')">💬 Abrir WhatsApp</button><button onclick="OPEN=null;render()">Cerrar panel</button></p></div>`}
 function addNote(id){const e=S.em.find(x=>x.id==id),v=$('#nt').value.trim();if(!e||!v)return;(e.notes=e.notes||[]).push({t:Date.now(),u:me.n,m:v});log(`NOTA emergencia #${e.n}: ${v}`);save();render()}
 const notesHtml=e=>(e.notes&&e.notes.length)?`<div style="margin-top:8px"><b>Notas:</b>${e.notes.map(n=>`<div style="font-size:16px;margin:4px 0;padding-left:8px;border-left:3px solid #e8590c"><span class="mu">${tm(n.t)} · ${esc(n.u)}</span><br>${esc(n.m)}</div>`).join('')}</div>`:'';
 /* 3. Fecha y horas editables en el parte */
@@ -408,6 +408,19 @@ WX.busy=false;wxDraw()}
 function wxDraw(){const el=document.getElementById('wx');if(!el)return;const d=WX.d,c=t=>t<=0?'#3b82f6':t>=28?'#e8590c':'inherit';
 el.innerHTML=`<button class="wxb" onclick="WX.open=!WX.open;if(WX.open&&Date.now()-WX.t>3e5)wxLoad();else wxDraw()">🌡 Temperaturas${d?' · '+WXP[0][0]+' '+Math.round(d[0].t)+'°C':''} ${WX.open?'▴':'▾'}</button>${WX.open?`<div class="wxp"><div class="wxh"><b>Temperatura actual por punto</b><button onclick="wxLoad()" title="Actualizar ahora">${WX.busy?'…':'⟳'}</button></div>${d?`<table><tr><th>Punto</th><th>Temp.</th><th>Viento</th><th>Alt. aprox.</th></tr>${WXP.map((p,i)=>{const x=d[i];return x?`<tr><td>${p[0]}</td><td style="color:${c(x.t)};font-weight:700">${x.t.toFixed(1)} °C</td><td class="mu">${Math.round(x.w)} km/h</td><td class="mu">${x.e} m</td></tr>`:''}).join('')}</table>`:`<p class="mu">${WX.err||'Cargando…'}</p>`}${WX.err&&d?`<p style="color:var(--rd);font-size:11px">${WX.err} Se muestran los últimos datos.</p>`:''}<p class="mu" style="font-size:11px;margin-top:6px">${WX.t?'Actualizado '+new Date(WX.t).toLocaleTimeString('es-CL',{hour:'2-digit',minute:'2-digit'})+' · se renueva cada 10 min · Fuente: Open-Meteo':''}</p></div>`:''}`}
 document.body.insertAdjacentHTML('beforeend','<div id="wx"></div>');wxDraw();wxLoad();setInterval(wxLoad,6e5);
+/* ---- Resumen para WhatsApp ---- */
+function waText(e){const us=e.units.map(i=>S.units.find(u=>u.id==i)).filter(Boolean),ic=u=>isAmb(u)?'🚑':/bomba/i.test(u.t)?'🚒':'🚐',L=[`🚨 *EMERGENCIA #${e.n}* · Prioridad ${e.pri}`,`📍 *Ubicación:* ${e.loc.n}`];
+if(e.loc.lat!=null)L.push(`🗺 https://maps.google.com/?q=${e.loc.lat},${e.loc.lon}`);
+L.push(`⚠️ *Tipo:* ${e.type}`,`📌 *Subtipo:* ${e.sub||'—'}`,'🧰 *Material despachado:*');
+if(us.length)us.forEach(u=>L.push(`• ${ic(u)} ${u.n}${u.mat?' ('+u.mat+')':''}`));else L.push('• Sin unidades asignadas');
+L.push(`🕒 *Despacho:* ${new Date(e.t).toLocaleDateString('es-CL')} ${hm(e.t)}`);
+if(e.desc)L.push(`📄 *Detalle:* ${e.desc}`);
+if(e.notes&&e.notes.length){L.push('📝 *Notas:*');e.notes.forEach(n=>L.push(`• ${hm(n.t)} – ${n.m}`))}
+return L.join('\n')}
+async function copyWa(id,b){const e=S.em.find(x=>x.id==id);if(!e)return;const t=waText(e);let ok=false;
+try{await navigator.clipboard.writeText(t);ok=true}catch(x){try{const a=document.createElement('textarea');a.value=t;a.style.cssText='position:fixed;opacity:0';document.body.appendChild(a);a.select();ok=document.execCommand('copy');a.remove()}catch(y){}}
+if(b){const o=b.textContent;b.textContent=ok?'✔ Copiado':'No se pudo copiar';setTimeout(()=>{b.textContent=o},1800)}if(!ok)prompt('Copie este texto:',t)}
+function sendWa(id){const e=S.em.find(x=>x.id==id);if(e)window.open('https://wa.me/?text='+encodeURIComponent(waText(e)),'_blank')}
 function tg(id){const i=D.units.indexOf(id);i<0?D.units.push(id):D.units.splice(i,1)}
 function addLog(){const v=$('#bn').value.trim();if(v){log('NOTA: '+v);render()}}
 function del(k,id){S[k]=S[k].filter(x=>x.id!=id);log('Eliminado en '+k);render()}
@@ -428,7 +441,7 @@ function ppt(){const s=stats(),p=new PptxGenJS();let a=p.addSlide();a.addImage({
 a=p.addSlide();a.addText('KPI',{x:.5,y:.3,fontSize:28,bold:true});a.addText([`Emergencias totales: ${s.tot}`,`Activas: ${s.act}`,`Cierre promedio: ${s.avg} min`,`Unidades disponibles: ${s.ud}/${s.ut}`].map(t=>({text:t,options:{bullet:true,breakLine:true}})),{x:.5,y:1.2,w:9,fontSize:20});
 a=p.addSlide();a.addText('Emergencias por tipo',{x:.5,y:.3,fontSize:28,bold:true});const k=Object.keys(s.tipo);if(k.length)a.addChart(p.charts.BAR,[{name:'Emergencias',labels:k,values:k.map(x=>s.tipo[x])}],{x:.5,y:1.2,w:9,h:4});
 p.writeFile({fileName:'informe-emergencias.pptx'})}
-window.getS=()=>S;window.setRemote=j=>{try{localStorage.setItem(KEY,j)}catch(e){}load();const a=document.activeElement;if(!a||!/INPUT|TEXTAREA|SELECT/.test(a.tagName))render()};
+window.getS=()=>S;window.setRemote=j=>{try{localStorage.setItem(KEY,j)}catch(e){}load();LSIG='';const a=document.activeElement;if(!a||!/INPUT|TEXTAREA|SELECT/.test(a.tagName))render()};
 window.addEventListener('storage',()=>{if(me){load();render()}});
 load();render();
 </script><script type="module">
