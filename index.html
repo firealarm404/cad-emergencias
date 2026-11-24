@@ -65,8 +65,8 @@ bases:[{id:uid(),n:'Base Emergencias Norte',x:210,y:90},{id:uid(),n:'Base Emerge
 types:[{n:'Incendio',s:['Equipo móvil','Instalación','Pastizal']},{n:'Accidente de personal',s:['Lesión leve','Lesión grave','Atrapamiento']},{n:'Derrame',s:['Combustible','Químico']},{n:'Colisión vehicular',s:['Camión - liviano','Camión - camión']},{n:'Rescate',s:['En altura','Espacio confinado']}],
 units:[{id:uid(),n:'Ambulancia 01',t:'Ambulancia',base:'Base Emergencias Norte',cap:'2 pacientes + 2 paramédicos',mat:'DEA, oxígeno, camilla, kit trauma',st:'Disponible'},{id:uid(),n:'Carro Bomba 01',t:'Bomba',base:'Base Emergencias Norte',cap:'4 bomberos, 3000 L agua',mat:'Espuma AFFF, mangueras, ERA x4',st:'Disponible'},{id:uid(),n:'Rescate 01',t:'Rescate',base:'Base Emergencias Sur',cap:'6 rescatistas',mat:'Cuerdas, trípode, hidráulico, ERA',st:'Disponible'},{id:uid(),n:'Hazmat 01',t:'Materiales peligrosos',base:'Base Emergencias Sur',cap:'4 técnicos',mat:'Kits de contención, absorbentes, trajes nivel A',st:'Disponible'}],
 em:[],log:[]}}
-function load(){try{S=JSON.parse(localStorage.getItem(KEY))}catch(e){}if(!S)S=seed();S.tr=S.tr||[];S.partes=S.partes||{};S.atc=S.atc||[['A-1','Primeros auxilios'],['A-2','Control de hemorragia'],['A-3','Inmovilización'],['A-4','RCP / DEA'],['A-5','Oxigenoterapia']].map(a=>({id:uid(),c:a[0],n:a[1]}));S.pue=S.pue||[{id:uid(),n:'PUE 1 (ejemplo)',d:'Descripción de ejemplo. El superadministrador puede editarla.'}];S.centros=S.centros||[['Policlínico de faena','Interno'],['Hospital regional','Externo'],['Clínica mutualidad','Externo']].map(a=>({id:uid(),n:a[0],t:a[1]}));if(!S.points.some(p=>p.lat!=null)){applyGeo(KML_DEFAULT,1);save()}autoCat()}
-function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}if(window.cloudSave)window.cloudSave(S)}
+function load(){try{S=JSON.parse(localStorage.getItem(KEY))}catch(e){}if(!S)S=seed();S.tr=S.tr||[];S.partes=S.partes||{};S.atc=S.atc||[['A-1','Primeros auxilios'],['A-2','Control de hemorragia'],['A-3','Inmovilización'],['A-4','RCP / DEA'],['A-5','Oxigenoterapia']].map(a=>({id:uid(),c:a[0],n:a[1]}));S.pue=S.pue||[{id:uid(),n:'PUE 1 (ejemplo)',d:'Descripción de ejemplo. El superadministrador puede editarla.'}];S.centros=S.centros||[['Policlínico de faena','Interno'],['Hospital regional','Externo'],['Clínica mutualidad','Externo']].map(a=>({id:uid(),n:a[0],t:a[1]}));if(!S.points.some(p=>p.lat!=null)){applyGeo(KML_DEFAULT,1);save()}autoCat();if(healLoc())save()}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}if(window.cloudSave)window.cloudSave(S);if(window.cloudAlerts)window.cloudAlerts(alertDocs())}
 function log(m){const e={t:Date.now(),u:me?me.n:'-',m,k:tk(m)};if(window.cloudLogAdd){window.cloudLogAdd(e).then(()=>{if(view=='bitacora'&&BT.pg==0){BT.rows=null;render()}})}else{S.log.unshift(e);S.log=S.log.slice(0,2000)}save()}
 const act=()=>S.em.filter(e=>e.st=='Activa');
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -144,7 +144,7 @@ const md=D.open?`<div class="ov"><div class="md"><h2>🚨 DESPACHAR EMERGENCIA</
 return`<div class="card"><div class="row" style="margin-bottom:8px"><div><input placeholder="Buscar ubicación (ej: Chancado)" value="${esc(D.q)}" oninput="srch(this.value)"><div id="res" class="res">${resHtml()}</div></div><div style="flex:none;white-space:nowrap;display:flex;gap:6px"><button class="${LAY=='calle'?'pri':''}" onclick="LAY='calle';render()">Calle</button><button class="${LAY=='sat'?'pri':''}" onclick="LAY='sat';render()">Satelital</button><button class="pri" onclick="D.open=1;render()">+ Nueva emergencia</button></div></div>${mapBox(1)}<p class="mu">Clic en el mapa o búsqueda para elegir el lugar: se abre la ventana de despacho.</p></div><div class="card"><h2>Emergencias activas</h2>${emTable()}</div>${claves()}${md}`};
 /* ---- Parte ---- */
 const P=()=>S.partes[PE];
-function sp(k,v){P()[k]=v;save()}
+function sp(k,v){P()[k]=v;if(k=='desc'){const e=S.em.find(x=>x.id==PE);if(e)e.desc=v}save()}
 function sl(n,i,k,v){P()[n][i][k]=v;save()}
 function la(n){P()[n].push({});save();render()}
 function ld(n,i){P()[n].splice(i,1);save();render()}
@@ -161,7 +161,7 @@ const e=S.em.find(x=>x.id==PE),p=P(),_=ensP(),T=S.types.find(x=>x.n==p.type),pu=
 return`<p><button onclick="PE=null;render()">← Volver al listado</button></p>
 ${sc('Parte · Emergencia #'+e.n,`${etimes(e)}`)}
 ${sc('1. Recepción de la emergencia',fi('rn','Nombre de quien reporta')+fi('rc','Cargo')+fi('re','Empresa')+fi('rl','Lugar exacto')+ft('rq','¿De qué se trata la emergencia?')+fs('rles','¿Existen lesionados?',['Sí','No'])+ft('rco','Condiciones del entorno')+ft('rea','Estado actual de la emergencia')+ft('rm','Medidas inmediatas tomadas'))}
-${sc('2. Datos de la emergencia',`${tipoSub(p,T)}`+ft('desc','Descripción (editable)')+fi('lugar','Lugar')+fi('comuna','Comuna')+fi('faena','Faena'))}
+${sc('2. Datos de la emergencia',`${tipoSub(p,T)}`+ft('desc','Descripción (editable)')+lugarField(p)+fi('comuna','Comuna')+fi('faena','Faena'))}
 ${sc('3. Afectación',fi('afe','Empresa afectada')+fs('aop','Impacto a las operaciones',['Sí','No'])+fs('aco','Impacto a la comunidad',['Sí','No'])+ft('afd','Detalle del impacto'))}
 <div class="card tw"><h2>4. Respuesta de las unidades <span class="mu">(horas tomadas de las claves 6-3, 6-9 y 6-10; editables)</span></h2><table><tr><th>Unidad</th><th>Despacho</th><th>Llegada</th><th>Retiro</th><th>Llega a base</th><th></th></tr>${e.units.map(id=>{const u=S.units.find(x=>x.id==id),r=p.uni[id]||{},k=(e.ck||{})[id]||{},g=c=>k[c]?hm(k[c]):'';return`<tr><td><b>${esc(u?.n)}</b></td>${[['d',hm(e.t)],['l',g('6-3')],['r',g('6-9')],['b',g('6-10')]].map(c=>`<td><input type="time" value="${r[c[0]]??c[1]}" oninput="su('${id}','${c[0]}',this.value)"></td>`).join('')}<td><button class="dng" onclick="unitDel('${id}')">Quitar</button></td></tr>`}).join('')||'<tr><td class="mu" colspan="6">Sin unidades registradas</td></tr>'}</table>${unitAdd(e)}</div>
 <div class="card"><h2>5. Vehículos de terceros respondedores (bomberos, carabineros, etc.)</h2>${lst('terc',[['u','Unidad / institución'],['d','Despacho','time'],['l','Llegada','time'],['r','Regreso a cuartel','time']],'Agregar tercero')}</div>
@@ -177,7 +177,7 @@ function ensP(){const p=P();if(p.pat=='Sí'){const n=Math.min(50,Math.max(1,+p.p
 function patHdr(p){return`<div><label>¿Hubo atención?</label><select onchange="sp('pat',this.value);render()"><option value="">—</option>${['Sí','No'].map(x=>`<option ${p.pat==x?'selected':''}>${x}</option>`).join('')}</select></div><div><label>Cantidad de pacientes</label><input type="number" min="0" value="${esc(p.pcan||'')}" onchange="sp('pcan',this.value);render()"></div>`}
 function reqSend(){const m=$('#rqm').value.trim();if(!m)return alert('Indique el motivo de la urgencia');const a=new Uint32Array(1);crypto.getRandomValues(a);const code=String(a[0]%1000000).padStart(6,'0');S.sol=S.sol||[];const n=S.em.find(x=>x.id==RQ.id).n;S.sol.unshift({id:uid(),pid:RQ.id,n,by:me.n,m,code,t:Date.now(),used:false,to:S.users.filter(u=>u.r!='operador').map(u=>u.email||u.u)});RQ.sent=true;log(`SOLICITUD de apertura urgente del parte #${n} por ${me.n}: ${m}`);render()}
 function reqUse(){const c=$('#rqc').value.trim(),s=(S.sol||[]).find(x=>x.pid==RQ.id&&x.by==me.n&&!x.used&&x.code==c);if(!s)return alert('Clave inválida o ya utilizada');s.used=true;s.tu=Date.now();S.partes[RQ.id].reab=true;log(`Parte #${s.n} reabierto por ${me.n} con clave de un solo uso`);PE=RQ.id;RQ=null;save();render()}
-const _cp=cerrarP;cerrarP=function(){P().reab=false;_cp()};
+const _cp=cerrarP;cerrarP=function(){const p=P(),e=S.em.find(x=>x.id==PE);p.reab=false;if(e)syncLugar(e,p);_cp()};
 const _vp=V.parte;
 V.parte=function(){if(PE&&S.partes[PE])return _vp();
 let h='';
@@ -496,6 +496,13 @@ function unitDel(id){const e=S.em.find(x=>x.id==PE),u=S.units.find(x=>x.id==id);
 function cenField(p){return`<div style="position:relative"><label>Centro de destino</label><input id="pcen_in" autocomplete="off" value="${esc(p.pcen||'')}" placeholder="Escriba para buscar…" oninput="cenSug(this.value)" onfocus="cenSug(this.value)" onchange="sp('pcen',this.value.trim())" onblur="setTimeout(()=>{const s=document.getElementById('pcen_sg');if(s)s.innerHTML=''},180)"><div id="pcen_sg" class="res" style="position:absolute;left:0;right:0;z-index:30;background:var(--sf)"></div></div>`}
 function cenSug(v){const q=nrm(v),r=S.centros.filter(c=>!q||nrm(c.n).includes(q)).slice(0,8),el=document.getElementById('pcen_sg');if(!el)return;el.innerHTML=r.length?r.map(c=>`<div onmousedown="cenPick('${c.id}')">${esc(c.n)} <span class="mu">${c.t}</span></div>`).join(''):'<div class="mu">Sin coincidencias · se guardará el texto escrito</div>'}
 function cenPick(id){const c=S.centros.find(x=>x.id==id);if(!c)return;sp('pcen',c.n);const i=document.getElementById('pcen_in');if(i)i.value=c.n;const s=document.getElementById('pcen_sg');if(s)s.innerHTML=''}
+/* ---- Alertas para la app móvil: solo datos de despacho (sin usuarios ni claves) ---- */
+function alertDocs(){const U=id=>S.units.find(u=>u.id==id);return S.em.filter(e=>e.st=='Activa'||(e.tc&&Date.now()-e.tc<864e5)).slice(0,30).map(e=>({id:e.id,n:e.n,t:e.t,tc:e.tc||null,st:e.st,pri:e.pri,type:e.type,sub:e.sub||'',desc:e.desc||'',loc:{n:e.loc.n,lat:e.loc.lat==null?null:e.loc.lat,lon:e.loc.lon==null?null:e.loc.lon},units:e.units.map(U).filter(Boolean).map(u=>({n:u.n,st:u.st,k:u.k||'',base:u.base||''})),notes:(e.notes||[]).map(n=>({t:n.t,u:n.u,m:n.m}))}))}
+/* ---- Lugar y descripción del parte se replican en la emergencia ---- */
+function syncLugar(e,p){const v=(p.lugar||'').trim();if(!v)return false;const pt=S.points.find(x=>nrm(x.n)==nrm(v)),n=pt?pt.n:v;p.lugar=n;if(n==e.loc.n)return false;e.loc.n=n;if(pt){e.loc.x=pt.x;e.loc.y=pt.y;e.loc.lat=pt.lat;e.loc.lon=pt.lon}return true}
+function healLoc(){let ch=false;S.em.forEach(e=>{const p=S.partes[e.id];if(!p)return;if(syncLugar(e,p))ch=true;if(typeof p.desc=='string'&&p.desc!==(e.desc||'')){e.desc=p.desc;ch=true}});return ch}
+function lugarField(p){return`<div><label>Lugar</label><input value="${esc(p.lugar||'')}" list="dl_pts" onchange="setLugar(this.value)"><datalist id="dl_pts">${S.points.slice(0,600).map(x=>`<option value="${esc(x.n)}">`).join('')}</datalist></div>`}
+function setLugar(v){const p=P(),e=S.em.find(x=>x.id==PE);v=v.trim();if(!v)return;p.lugar=v;if(e&&syncLugar(e,p))log(`PARTE emergencia #${e.n}: lugar → ${e.loc.n}`);save();render()}
 function tg(id){const i=D.units.indexOf(id);i<0?D.units.push(id):D.units.splice(i,1)}
 function addLog(){const v=$('#bn').value.trim();if(v){log('NOTA: '+v);render()}}
 function del(k,id){S[k]=S[k].filter(x=>x.id!=id);log('Eliminado en '+k);render()}
@@ -533,6 +540,8 @@ const app=initializeApp(cfg),db=getFirestore(app),st=getStorage(app),cid=Math.ra
 await signInAnonymously(getAuth(app)).catch(e=>console.error('Auth',e));
 const ref=doc(db,'cad','estado'),bit=collection(db,'bitacora');let t;
 window.cloudSave=d=>{clearTimeout(t);t=setTimeout(()=>setDoc(ref,{json:JSON.stringify(d),upd:Date.now(),cid}).catch(e=>console.error('Firestore',e)),600)};
+const aprev=new Map();let at;
+window.cloudAlerts=docs=>{clearTimeout(at);at=setTimeout(async()=>{try{const ids=new Set(docs.map(d=>d.id));for(const d of docs){const h=JSON.stringify(d);if(aprev.get(d.id)!==h){await setDoc(doc(db,'alertas',d.id),d);aprev.set(d.id,h)}}for(const id of [...aprev.keys()])if(!ids.has(id)){await deleteDoc(doc(db,'alertas',id));aprev.delete(id)}}catch(e){console.error('Alertas',e)}},700)};
 window.cloudLogAdd=e=>addDoc(bit,e).catch(x=>console.error('Bitacora',x));
 window.cloudLogPage=async(cur,f)=>{f=f||{};const c=[];if(f.u)c.push(where('u','==',f.u));if(f.k)c.push(where('k','array-contains',f.k));c.push(orderBy('t','desc'));if(cur)c.push(startAfter(cur));c.push(limit(30));const s=await getDocs(query(bit,...c));return{rows:s.docs.map(d=>d.data()),last:s.docs[s.docs.length-1]}};
 window.cloudLogClear=async()=>{for(;;){const s=await getDocs(query(bit,limit(400)));if(s.empty)break;const b=writeBatch(db);s.docs.forEach(d=>b.delete(d.ref));await b.commit()}};
